@@ -505,10 +505,10 @@ test('mb-release: policy emit is skipped with a notice when marketplace.config.j
   assert.equal(fs.existsSync(path.join(dir, 'dist', 'assets')), false);
 });
 
-test('CODEOWNERS seed and base copy: every owner line commented, placeholder lines present', () => {
-  for (const f of [path.join(ROOT, 'tools', 'templates', 'seeds', '.github', 'CODEOWNERS'), path.join(ROOT, '.github', 'CODEOWNERS')]) {
-    const lines = fs.readFileSync(f, 'utf8').split('\n').filter((l) => l.trim());
-    assert.ok(lines.every((l) => l.startsWith('#')), f);
-    assert.ok(lines.includes('# * @OWNER') && lines.includes('# /policy/org.json @OWNER'), f);
-  }
+test('CODEOWNERS seed: every owner line commented, placeholder lines present', () => {
+  // Only the seed is checked: a repo's own .github/CODEOWNERS is filled by `mb github setup`.
+  const f = path.join(ROOT, 'tools', 'templates', 'seeds', '.github', 'CODEOWNERS');
+  const lines = fs.readFileSync(f, 'utf8').split('\n').filter((l) => l.trim());
+  assert.ok(lines.every((l) => l.startsWith('#')), f);
+  assert.ok(lines.includes('# * @OWNER') && lines.includes('# /policy/org.json @OWNER'), f);
 });

@@ -5,5 +5,5 @@
 # not a valid code owner, so setup leaves them commented: add "@<org>/<team>" lines yourself.
 # Code-owner review is only required when setup runs with --require-codeowners (2+ maintainers).
 #
-# * @OWNER
-# /policy/org.json @OWNER
+* @SashaMarchuk
+/policy/org.json @SashaMarchuk
