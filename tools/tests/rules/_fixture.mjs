@@ -101,7 +101,7 @@ export function makeRepo(files = {}) {
 export function git(root, ...args) {
   const env = {
     ...process.env,
-    GIT_CONFIG_GLOBAL: os.devNull, GIT_CONFIG_NOSYSTEM: '1',
+    GIT_CONFIG_GLOBAL: emptyGitConfig(), GIT_CONFIG_NOSYSTEM: '1',
     GIT_AUTHOR_NAME: 'Test', GIT_AUTHOR_EMAIL: 'test@example.com',
     GIT_COMMITTER_NAME: 'Test', GIT_COMMITTER_EMAIL: 'test@example.com',
   };
@@ -126,3 +126,10 @@ export async function runRule(id, root, opts = {}) {
 
 export const errors = (results) => results.filter((r) => r.severity === 'error');
 export const warnings = (results) => results.filter((r) => r.severity === 'warning');
+
+/** An empty git config file. os.devNull ('\\.\nul') is not readable by git on Windows. */
+function emptyGitConfig() {
+  const f = path.join(os.tmpdir(), 'mb-empty-gitconfig');
+  if (!fs.existsSync(f)) fs.writeFileSync(f, '');
+  return f;
+}

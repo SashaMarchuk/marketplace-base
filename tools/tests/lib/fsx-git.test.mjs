@@ -45,7 +45,7 @@ test('fsx: POSIX rel paths, walk, atomic writes, readJson', () => {
 
 test('git helpers on a temp repo', { skip: !hasGit() && 'git not installed' }, () => {
   const dir = fs.realpathSync.native(tmp('mb-git-'));
-  const env = { ...process.env, GIT_CONFIG_GLOBAL: os.devNull, GIT_CONFIG_NOSYSTEM: '1' };
+  const env = { ...process.env, GIT_CONFIG_GLOBAL: emptyGitConfig(), GIT_CONFIG_NOSYSTEM: '1' };
   const g = (...args) => git(args, { cwd: dir, env });
   try {
     assert.equal(gitRoot(dir), null);
@@ -87,3 +87,10 @@ test('missing git maps to exit code 7', () => {
   });
   assert.equal(r.stdout.trim(), 'MissingToolError 7');
 });
+
+/** An empty git config file. os.devNull ('\\.\nul') is not readable by git on Windows. */
+function emptyGitConfig() {
+  const f = path.join(os.tmpdir(), 'mb-empty-gitconfig');
+  if (!fs.existsSync(f)) fs.writeFileSync(f, '');
+  return f;
+}

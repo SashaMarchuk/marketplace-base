@@ -38,7 +38,9 @@ function validateDir(rctx, bin, dir, configDir) {
 
 export function run(rctx) {
   const targets = [];
-  if (rctx.exists('.claude-plugin/marketplace.json')) targets.push('.');
+  // An empty marketplace (e.g. `init --examples none` before the first plugin) is valid for us,
+  // but the host validator warns "no plugins defined" and --strict turns that into an error: skip it.
+  if (rctx.exists('.claude-plugin/marketplace.json') && rctx.plugins.length) targets.push('.');
   for (const p of rctx.plugins) if (rctx.exists(`${p.dir}/.claude-plugin/plugin.json`)) targets.push(p.dir);
   if (!targets.length) return []; // nothing generated yet: CHK-10 reports it
 
