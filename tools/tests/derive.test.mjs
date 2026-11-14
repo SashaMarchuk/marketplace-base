@@ -264,6 +264,8 @@ ftest('init without --email/--repo drops those keys; init from a clone of the an
   assert.equal(lock.base.tag, 'v0.2.0');
   assert.equal(lock.base.commit, SHA['v0.2.0']);
   assert.notEqual(lock.base.commit, SHA['v0.2.0-tagobj']);
+  // A clone keeps origin = base: init must warn so a push cannot publish the derived repo to the base.
+  assert.match(r.stderr, /origin" still points at the base/);
   const cfg = parse(fs.readFileSync(p(dir, 'marketplace.config.json')));
   assert.deepEqual(cfg.owner, { name: 'Alice' });
   assert.equal(cfg.distribution, undefined);

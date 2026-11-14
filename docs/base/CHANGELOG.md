@@ -6,15 +6,21 @@ A release that renames, moves or reclassifies a path you own, or changes an S fi
 
 ## [Unreleased]
 
-### Added
+## [0.1.1] - 2026-11-14
+
+### Fixed
+
+- `mb init` warns when the git remote `origin` still points at the base, so a push cannot publish a derived marketplace to the base repository.
+
+## [0.1.0] - 2026-11-14
+
+### Added (documentation)
 
 - `docs/base/migrating.md`: moving an existing marketplace onto the base (artifact mapping, config layer mapping, merge recipes, known gaps with workarounds).
 
-### Changed
+### Changed (documentation)
 
 - Docs: local-clone installs, `claude -p` prompt-before-`--allowedTools` ordering, `./mb config set`, team files and policy preview in policy.md, `config.defaults.json` shape, `blocked: true` overriding `ok`, adopting or dropping examples.
-
-## [0.1.0]
 
 ### Added
 

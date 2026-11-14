@@ -69,6 +69,13 @@ function baseCommit(root, url, tag) {
   };
 }
 
+/** "host/path" of a git URL (https, ssh://, scp-style), lowercased and without `.git`, for comparison. */
+function urlKey(u) {
+  const s = String(u).trim().replace(/\/+$/, '').replace(/\.git$/, '');
+  const m = /^(?:[a-z][a-z0-9+.-]*:\/\/)?(?:[^@/]+@)?([^/:]+)[:/](.+)$/i.exec(s);
+  return (m ? `${m[1]}/${m[2]}` : s).toLowerCase();
+}
+
 function listExamples(root) {
   const dir = path.join(root, 'examples', 'plugins');
   if (!isDir(dir)) return [];
@@ -173,6 +180,8 @@ export async function run(argv, ctx) {
 
   // Base commit of the tag: peeled ^{} line preferred (annotated), else the plain line (lightweight).
   const { commit, why } = baseCommit(root, baseUrl, tag);
+  const origin = runGit(['remote', 'get-url', 'origin'], { cwd: root });
+  const originIsBase = origin.code === 0 && urlKey(origin.stdout) === urlKey(baseUrl);
 
   // ---- writes start here ----
   for (const [target, content] of rendered) {
@@ -218,6 +227,10 @@ Next steps:
   4. Set up GitHub (optional):         ./mb github setup --dry-run
   5. Pull base updates later:          ./mb base-update
 `);
+  if (originIsBase) {
+    ctx.stderr(`mb init: WARNING: git remote "origin" still points at the base (${baseUrl}); a push to origin would publish your marketplace there.\n` +
+      'Fix: git remote rename origin base && git remote add origin <your repo URL>\n');
+  }
   if (checkCode) ctx.stderr(`mb init: init is done, but ./mb check reported problems (exit ${checkCode}); see above\n`);
   return checkCode;
 }
