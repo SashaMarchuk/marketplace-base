@@ -1,4 +1,4 @@
-// tools/cmd/export.mjs: `mb export skills <dir> [--plugin p] [--force]` (SPEC §11, §4.7).
+// tools/cmd/export.mjs: `mb export skills <dir> [--plugin p] [--force]`.
 // Copies each skills/<s> dir (with its generated _mb/) flat into <dir>, for a plain skills-folder
 // install (~/.agents/skills for Codex, ~/.claude/skills for Claude).
 import path from 'node:path';

@@ -1,4 +1,4 @@
-// tools/cmd/base-update.mjs: `mb base-update` (SPEC §14.3). Pulls a newer base tag into a derived
+// tools/cmd/base-update.mjs: `mb base-update`. Pulls a newer base tag into a derived
 // repo by copying files, never by a 3-way merge.
 //
 // Two phases (the state file is the contract between them, keep it stable across base versions):
@@ -11,14 +11,19 @@
 //      (tools/lib/lock.mjs decide) to every locked path and every B/E path of the commit, run the
 //      migrations for the versions crossed, write the lock, delete the state file, run gen and
 //      `check --fast`, print the report.
-// --dry-run stops after the fetch: it prints the plan and writes nothing in the worktree.
+// --dry-run stops after the fetch: it prints the plan and writes nothing in the worktree. It lists
+// only the paths that would change or conflict; --verbose lists every path with its table row.
+// The base URL is marketplace.config.json#base.url (fallback: the lock), recorded in the new lock.
 //
-// [spec-decided] The fetch uses `--depth 1` only when the tag's commit is not already in the local
+// The fetch uses `--depth 1` only when the tag's commit is not already in the local
 // object store: a depth-1 fetch of a commit that is already an ancestor of HEAD (clone-derived
 // repos) marks it shallow and truncates the visible history.
-// [spec-decided] A downgrade (target older than the locked tag) is refused; the same tag is allowed
+// A downgrade (target older than the locked tag) is refused; the same tag is allowed
 // (re-applies and re-reports kept conflicts).
-// [spec-decided] Exit: 6 on conflicts without --force/--keep; else gen's exit if non-zero; else 1 if
+// Exit 6 on conflicts is a PARTIAL apply (phase 1 already checked out the new
+// tooling): non-conflicting files are written and the lock moves to the new tag. Recovery: commit
+// it, then re-run `--to <tag> --force|--keep` (the same tag is allowed and re-reports the conflicts).
+// Exit: 6 on conflicts without --force/--keep; else gen's exit if non-zero; else 1 if
 // `check --fast` fails (with --keep, CHK-16 is red on purpose for the kept conflicts); else 0.
 
 import fs from 'node:fs';
@@ -31,13 +36,13 @@ import { git, runGit, gitPath, lsRemoteTag } from '../lib/git.mjs';
 import { compileOwnership, parseOwnership } from '../lib/ownership.mjs';
 import { hashFile, lockHash } from '../lib/hash.mjs';
 import {
-  ROWS, SELF_PATHS, compareTags, decide, exampleIncluded, exampleOf, highestStableTag, isSelfPath,
+  ROWS, SELF_PATHS, baseUrlOf, compareTags, decide, exampleIncluded, exampleOf, highestStableTag, isSelfPath,
   parseTag, readLock, repoFiles, requireGitRoot, tagsFromLsRemote, writeLock,
 } from '../lib/lock.mjs';
 
 export const name = 'base-update';
 export const summary = 'Pull a newer base tag into this derived repo (file copy, conflict-safe).';
-export const usage = 'mb base-update [--to vX.Y.Z] [--force|--keep] [--no-workflows] [--continue] [--dry-run]';
+export const usage = 'mb base-update [--to vX.Y.Z] [--force|--keep] [--no-workflows] [--continue] [--dry-run [--verbose]]';
 export const options = {
   to: { type: 'string' },
   force: { type: 'boolean' },
@@ -45,6 +50,7 @@ export const options = {
   'no-workflows': { type: 'boolean' },
   continue: { type: 'boolean' },
   'dry-run': { type: 'boolean' },
+  verbose: { type: 'boolean' },
 };
 
 export const REPORT_TITLE = 'base-update report';
@@ -103,7 +109,7 @@ function currentHash(root, rel) {
 // ---------- the plan (shared by --dry-run and --continue) ----------
 
 /**
- * Apply the §14.3 table to lock.files ∪ {B/E paths of <commit>}.
+ * Apply the decision table to lock.files ∪ {B/E paths of <commit>}.
  * Returns [{ path, row, action, conflict, lockHash, entry }] sorted by path.
  */
 function computePlan({ root, lock, commit, tree, pre, flags }) {
@@ -157,9 +163,11 @@ function computePlan({ root, lock, commit, tree, pre, flags }) {
   return plan;
 }
 
-function printPlan(ctx, plan) {
-  ctx.stdout('plan (row, action, path):\n');
-  for (const it of plan) ctx.stdout(`  row ${it.row}  ${it.action.padEnd(7)}  ${it.path}  # ${ROWS[it.row]}\n`);
+/** Default: only rows that change or conflict; --verbose: every path (incl. skip/up-to-date/held/released). */
+function printPlan(ctx, plan, verbose) {
+  const shown = verbose ? plan : plan.filter((it) => it.conflict || it.action === 'write' || it.action === 'delete');
+  ctx.stdout(`plan (row, action, path)${verbose ? '' : `: ${shown.length} of ${plan.length} paths change or conflict (--verbose lists all)`}:\n`);
+  for (const it of shown) ctx.stdout(`  row ${it.row}  ${it.action.padEnd(7)}  ${it.path}  # ${ROWS[it.row]}\n`);
 }
 
 // ---------- phase 1 ----------
@@ -168,7 +176,8 @@ async function phaseOne(ctx, root, lock, flags, statePath) {
   if (exists(statePath)) {
     throw ctx.fail(2, `an update is in progress (state file ${statePath}). Run "./mb base-update --continue" to finish it, or discard it: git reset --hard && git clean -fd, then delete that file`);
   }
-  const url = lock.base.url;
+  const url = baseUrlOf(root, lock);
+  if (url !== lock.base.url) ctx.stdout(`base.url: ${url} (from marketplace.config.json; the lock had ${lock.base.url})\n`);
   let tag = flags.to;
   if (tag === undefined) {
     const r = runGit(['ls-remote', '--tags', url], { cwd: root });
@@ -228,7 +237,7 @@ async function phaseOne(ctx, root, lock, flags, statePath) {
 
   if (flags.dryRun) {
     const plan = computePlan({ root, lock, commit, tree, pre, flags });
-    printPlan(ctx, plan);
+    printPlan(ctx, plan, flags.verbose);
     const conflicts = plan.filter((p) => p.conflict).length;
     ctx.stdout(`dry run: ${lock.base.tag} -> ${tag}; ${plan.filter((p) => ['write', 'delete'].includes(p.action)).length} file(s) would change, ${conflicts} conflict(s); nothing was written\n`);
     return 0;
@@ -342,7 +351,7 @@ async function phaseTwo(ctx, root, lock, flags, statePath) {
 
   const files = {};
   for (const it of plan) if (it.lockHash !== null) files[it.path] = it.lockHash;
-  writeLock(root, { base: { url: lock.base.url, tag, commit }, files, adopted: lock.adopted });
+  writeLock(root, { base: { url: baseUrlOf(root, lock), tag, commit }, files, adopted: lock.adopted });
   fs.unlinkSync(statePath);
 
   const by = (pred) => plan.filter(pred).map((p) => p.path);
@@ -368,7 +377,11 @@ async function phaseTwo(ctx, root, lock, flags, statePath) {
   ctx.stdout(`migrations run (${migrations.length})${migrations.map((m) => `\n  ${m.version}: edited ${m.edited.join(', ') || '(no files)'}`).join('')}\n`);
 
   if (conflicts.length && !flags.force && !flags.keep) {
-    ctx.stderr(`mb base-update: ${conflicts.length} conflict(s) left untouched. Resolve each one (revert your change, upstream it to the base, or re-run with --force to take the base version, or --keep to keep yours), then commit\n`);
+    ctx.stderr(`mb base-update: ${conflicts.length} conflict(s) left untouched; the other files were updated and the lock is now ${tag}. Next:
+  1. commit this partial update:  git add -A && git commit -m "marketplace-base update to ${tag} (conflicts pending)"
+  2. resolve the conflicts:       ./mb base-update --to ${tag} --force   (take the base version)
+                              or  ./mb base-update --to ${tag} --keep    (keep yours; ./mb check stays red until resolved)
+     or revert your change / upstream it to the base, then re-run ./mb base-update --to ${tag}\n`);
     return 6;
   }
   if (genCode) return genCode;
@@ -384,7 +397,8 @@ export async function run(argv, ctx) {
   if (ctx.args.positionals.length) throw ctx.usageError(`unexpected argument "${ctx.args.positionals[0]}"`);
   if (v.force && v.keep) throw ctx.usageError('--force and --keep are mutually exclusive');
   if (v.continue && v['dry-run']) throw ctx.usageError('--dry-run cannot be combined with --continue');
-  const flags = { to: v.to, force: v.force, keep: v.keep, noWorkflows: v['no-workflows'], dryRun: v['dry-run'] };
+  if (v.verbose && !v['dry-run']) throw ctx.usageError('--verbose applies to --dry-run only');
+  const flags = { to: v.to, force: v.force, keep: v.keep, noWorkflows: v['no-workflows'], dryRun: v['dry-run'], verbose: v.verbose };
   const root = ctx.root;
   if (ctx.isBase()) throw ctx.usageError('base-update runs in a derived repo (this repo has no .mb-lock.json; run ./mb init first)');
   requireGitRoot(root, 'base-update');

@@ -14,6 +14,9 @@ if [ -z "$mkt" ]; then
   fi
 fi
 mkt="${mkt:-marketplace-base}"
+# Make the workspace its own project root: the resolver finds the project layer at
+# `git rev-parse --show-toplevel`, and the Claude eval sandbox sits inside another git repo.
+git init -q . 2>/dev/null || true
 mkdir -p ".$mkt"
 cat > ".$mkt/config.json" <<'JSON'
 {"access":{"deny":["code-review"]}}

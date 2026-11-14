@@ -1,4 +1,4 @@
-# mb-base-update (base-owned; SPEC section 14.5). Weekly base update, enabled only when the
+# mb-base-update (base-owned). Weekly base update, enabled only when the
 # repository variable MB_BASE_UPDATE is 'true'. Fetched base code never runs next to a write token:
 #   gate     no checkout, no code: says whether secrets.MB_UPDATE_TOKEN is set (a boolean only)
 #   update   contents: read, no secrets: runs ./mb base-update and uploads the diff
@@ -8,6 +8,8 @@
 # GITHUB_TOKEN and writes the compare link + checklist to the job summary; it never opens the PR
 # (GITHUB_TOKEN events do not start pull_request workflows), and update runs with --no-workflows
 # because GITHUB_TOKEN cannot push .github/workflows changes.
+# It runs on the default branch only (a manual run from another branch is skipped), so the update is
+# built from, and the PR targets, the default branch.
 name: mb-base-update
 
 on:
@@ -24,7 +26,7 @@ concurrency:
 
 jobs:
   gate:
-    if: vars.MB_BASE_UPDATE == 'true'
+    if: vars.MB_BASE_UPDATE == 'true' && (github.event_name == 'schedule' || github.ref_name == github.event.repository.default_branch)
     runs-on: ubuntu-latest
     permissions: {}
     outputs:
@@ -125,9 +127,9 @@ jobs:
             echo "::error::unexpected base tag in the update artifact"; exit 1
           fi
           branch="mb/base-update-$tag"
-          DEFAULT_BRANCH=$(git rev-parse --abbrev-ref HEAD) # the checked-out default branch (schedule payloads carry no repository)
+          DEFAULT_BRANCH=$(git rev-parse --abbrev-ref HEAD) # the gate admits only default-branch runs, so HEAD is the default branch
           if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
-            echo "::notice::branch $branch already exists; nothing pushed"
+            echo "::notice::branch $branch already exists (its PR is open or was closed); nothing pushed. Delete the branch to rebuild it on the next run"
             exit 0
           fi
           git config user.name "mb-base-update"

@@ -1,5 +1,5 @@
-// Tests for the contributor commands (U6): new, bump, adopt, export, try, config.
-// Every test runs against a temp repo and a temp command dir that re-exports ONLY the U6 modules
+// Tests for the contributor commands : new, bump, adopt, export, try, config.
+// Every test runs against a temp repo and a temp command dir that re-exports ONLY the contributor modules
 // (plus stub gen/check where a test needs them), so the real gen/check never run here.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,11 +17,11 @@ import { formatTable } from '../cmd/config.mjs';
 
 const TOOLS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = path.resolve(TOOLS, '..');
-const U6 = ['new', 'bump', 'adopt', 'export', 'try', 'config'];
+const CONTRIB = ['new', 'bump', 'adopt', 'export', 'try', 'config'];
 const POSIX = process.platform !== 'win32';
 
 function tmp(prefix) {
-  return fs.mkdtempSync(path.join(os.tmpdir(), `mb-u6-${prefix}-`));
+  return fs.mkdtempSync(path.join(os.tmpdir(), `mb-contrib-${prefix}-`));
 }
 function write(root, rel, text) {
   const abs = path.join(root, ...rel.split('/'));
@@ -36,10 +36,10 @@ function has(root, rel) {
   return fs.existsSync(path.join(root, ...rel.split('/')));
 }
 
-/** A temp command dir: re-export stubs for the U6 modules, plus extra stub modules {verb: source}. */
+/** A temp command dir: re-export stubs for the contributor modules, plus extra stub modules {verb: source}. */
 function makeCmdDir(extra = {}) {
   const dir = tmp('cmd');
-  for (const v of U6) {
+  for (const v of CONTRIB) {
     fs.writeFileSync(path.join(dir, `${v}.mjs`), `export * from ${JSON.stringify(pathToFileURL(path.join(TOOLS, 'cmd', `${v}.mjs`)).href)};\n`);
   }
   for (const [v, src] of Object.entries(extra)) fs.writeFileSync(path.join(dir, `${v}.mjs`), src);
@@ -90,15 +90,15 @@ function frontmatter(text) {
 
 // ------------------------------------------------------------------ discovery
 
-test('all six U6 commands load through the dispatcher contract', async () => {
+test('all six contributor commands load through the dispatcher contract', async () => {
   const r = await mb(baseRepo(), ['--help']);
   assert.equal(r.code, 0);
-  for (const v of U6) assert.match(r.out, new RegExp(`^  ${v} `, 'm'));
+  for (const v of CONTRIB) assert.match(r.out, new RegExp(`^  ${v} `, 'm'));
 });
 
 // ------------------------------------------------------------------ new
 
-test('new skill demo/hello creates the plugin, SKILL.md and both eval cases (SPEC §11)', async () => {
+test('new skill demo/hello creates the plugin, SKILL.md and both eval cases', async () => {
   const root = baseRepo();
   const r = await mb(root, ['new', 'skill', 'demo/hello', 'Say hello. Use when greeted.']);
   assert.equal(r.code, 0, r.err);
@@ -187,7 +187,8 @@ test('new skill --config creates plugin-level config.defaults.json, config case 
   assert.match(read(root, `${cfgCase}/scaffold.sh`), /EVAL_MB_MARKETPLACE:-acme-skills/);
   assert.match(read(root, `${cfgCase}/scaffold.sh`), /\{"plugins":\{"demo":\{"settings":\{\}\}\}\}/);
   assert.match(read(root, `${cfgCase}/prompt.md`), /allowed_tools: \[Read, Glob, Grep, Skill, Bash\]/);
-  assert.match(read(root, `${cfgCase}/graders/resolver-ran.md`), /tool: Bash/);
+  assert.match(read(root, `${cfgCase}/graders/config-effect.md`), /^type: regex$/m);
+  assert.deepEqual(fs.readdirSync(path.join(root, cfgCase, 'graders')), ['config-effect.md']);
   // A later plain `new skill` in the now-configurable plugin also gets the block.
   assert.equal((await mb(root, ['new', 'skill', 'demo/third', 'Third.'])).code, 0);
   assert.deepEqual(findMarkers(read(root, 'plugins/demo/skills/third/SKILL.md')).pairs.map((p) => p.id), ['config']);
@@ -199,8 +200,9 @@ if (POSIX) {
     await mb(root, ['new', 'skill', 'demo/hello', 'Say hello.', '--config']);
     const ws = tmp('ws');
     const { spawnSync } = await import('node:child_process');
-    const r = spawnSync('sh', [path.join(root, 'plugins/demo/evals/config-respected/scaffold.sh')], { cwd: ws, env: { PATH: process.env.PATH } });
+    const r = spawnSync('sh', [path.join(root, 'plugins/demo/evals/config-respected/scaffold.sh')], { cwd: ws, env: { PATH: process.env.PATH, HOME: process.env.HOME ?? '' } });
     assert.equal(r.status, 0, String(r.stderr));
+    assert.ok(fs.existsSync(path.join(ws, '.git')), 'scaffold runs git init');
     assert.deepEqual(parse(fs.readFileSync(path.join(ws, '.acme-skills/config.json'))), { plugins: { demo: { settings: {} } } });
   });
 }
@@ -212,8 +214,8 @@ test('new skill refuses clashes and bad input without writing anything', async (
   assert.equal((await mb(root, ['new', 'skill', 'other/commit-message', 'X.'])).code, 1, 'skill name clash (flat export)');
   assert.ok(!has(root, 'plugins/other'));
   assert.equal((await mb(root, ['new', 'skill', 'Bad/x', 'X.'])).code, 2);
-  assert.equal((await mb(root, ['new', 'skill', 'constructor/x', 'X.'])).code, 2, 'reserved plugin name (O13)');
-  assert.equal((await mb(root, ['new', 'plugin', 'prototype'])).code, 2, 'reserved plugin name (O13)');
+  assert.equal((await mb(root, ['new', 'skill', 'constructor/x', 'X.'])).code, 2, 'reserved plugin name');
+  assert.equal((await mb(root, ['new', 'plugin', 'prototype'])).code, 2, 'reserved plugin name');
   assert.equal((await mb(root, ['new', 'skill', 'demo/x'])).code, 2, 'description required');
   assert.equal((await mb(root, ['new', 'skill', 'demo/x', ''])).code, 2);
   assert.equal((await mb(root, ['new', 'skill', 'demo/x', 'X.', '--bogus'])).code, 2);
@@ -247,7 +249,7 @@ test('yamlScalar quotes descriptions that are not plain-safe; insertConfigPair i
   assert.equal(insertConfigPair(once), null);
 });
 
-test('U6 templates hold no column-0 marker pair (ORCH O1)', () => {
+test('contributor templates hold no column-0 marker pair', () => {
   const walkAll = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walkAll(path.join(d, e.name)) : [path.join(d, e.name)]));
   const files = ['plugin', 'skill', 'evals'].flatMap((d) => walkAll(path.join(TOOLS, 'templates', d)));
   assert.ok(files.length >= 10);
@@ -260,7 +262,9 @@ test('bump edits only the version string (patch default, minor, major)', async (
   const root = baseRepo();
   const text = '{\n  "name": "demo",\n  "description": "Has \\"version\\": \\"9.9.9\\" inside.",\n  "version":   "1.2.3"\n}\n';
   write(root, 'plugins/demo/plugin.src.json', text);
-  assert.equal((await mb(root, ['bump', 'demo'])).code, 0);
+  const first = await mb(root, ['bump', 'demo']);
+  assert.equal(first.code, 0);
+  assert.match(first.out, /^next: \.\/mb gen$/m, 'no gen installed: bump says what to run');
   assert.equal(read(root, 'plugins/demo/plugin.src.json'), text.replace('"1.2.3"', '"1.2.4"'));
   assert.equal((await mb(root, ['bump', 'demo', 'minor'])).code, 0);
   assert.match(read(root, 'plugins/demo/plugin.src.json'), /"version":   "1\.3\.0"/);
@@ -272,10 +276,20 @@ test('bump edits only the version string (patch default, minor, major)', async (
   assert.equal(nextVersion('0.1.9', 'patch'), '0.1.10');
 });
 
+test('bump runs ./mb gen after editing the version', async () => {
+  const root = baseRepo();
+  write(root, 'plugins/demo/plugin.src.json', '{"name":"demo","version":"0.1.0","description":"D."}\n');
+  const r = await mb(root, ['bump', 'demo'], { cmdDir: makeCmdDir({ gen: stubCmd('gen', 0) }) });
+  assert.equal(r.code, 0);
+  assert.equal(read(root, 'calls.log'), 'gen \n');
+  const failed = await mb(root, ['bump', 'demo'], { cmdDir: makeCmdDir({ gen: stubCmd('gen', 3) }) });
+  assert.equal(failed.code, 3, 'a gen failure is the bump exit code');
+});
+
 test('bump refuses E plugins in a derived repo, allows them in the base', async () => {
   const root = baseRepo();
   examplePlugin(root, 'commit-message');
-  assert.equal((await mb(root, ['bump', 'commit-message'])).code, 0, 'base owns its examples (SPEC 4.3)');
+  assert.equal((await mb(root, ['bump', 'commit-message'])).code, 0, 'base owns its examples');
   write(root, '.mb-lock.json', canonicalPretty({ adopted: [], base: { url: 'x', tag: 'v1.0.0', commit: null }, files: {}, lockVersion: 1 }));
   const r = await mb(root, ['bump', 'commit-message']);
   assert.equal(r.code, 1);
@@ -460,6 +474,20 @@ test('config resolve passes through blocked (4) and error exits', async () => {
   assert.equal((await mb(root, ['config', 'resolve', 'demo', '--skill', 'nope'])).code, 1);
   assert.equal((await mb(root, ['config', 'show', 'demo'])).code, 2);
   assert.match(formatTable({ plugin: 'p', tier: 'a', ok: true, blocked: false, provenance: {}, settings: {} }), /\(no settings\)/);
+});
+
+test('config set passes layer, pointer and value to the resolver and prints its JSON', async () => {
+  const root = resolverRepo(RESOLVED, 0);
+  const work = tmp('cwd');
+  const r = await mb(root, ['config', 'set', 'demo', '--layer', 'project', '--shared', '/maxItems', '5', '--cwd', work]);
+  assert.equal(r.code, 0, r.err);
+  assert.equal(r.out, RESOLVED + '\n');
+  const seen = JSON.parse(r.err.trim());
+  assert.deepEqual(seen.argv, ['set', '--plugin', 'demo', '--layer', 'project', '--shared', '/maxItems', '5']);
+  assert.equal(fs.realpathSync(seen.cwd), fs.realpathSync(work));
+  assert.equal((await mb(root, ['config', 'set', 'demo', '/maxItems', '5'])).code, 2, 'needs --layer');
+  assert.equal((await mb(root, ['config', 'set', 'demo', '--layer', 'user', '/maxItems'])).code, 2, 'needs <ptr> <json>');
+  assert.equal((await mb(root, ['config', 'resolve', 'demo', '--layer', 'user'])).code, 2);
 });
 
 // ------------------------------------------------------------------ try (fake host CLIs)

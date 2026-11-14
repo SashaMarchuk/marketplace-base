@@ -1,4 +1,4 @@
-// tools/cmd/adopt.mjs: `mb adopt <p>` (SPEC §11, §14.2). Derived repos only.
+// tools/cmd/adopt.mjs: `mb adopt <p>`. Derived repos only.
 // Moves examples/plugins/<p> (E) to plugins/<p> (D), drops its lock entries, records <p> in the
 // lock's `adopted` list, and runs gen. marketplace.config.json#includeExamples is NOT changed.
 import fs from 'node:fs';

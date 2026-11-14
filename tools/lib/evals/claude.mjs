@@ -1,6 +1,7 @@
-// tools/lib/evals/claude.mjs: the Claude runner (SPEC §15.2) and the shared process helper.
+// tools/lib/evals/claude.mjs: the Claude runner and the shared process helper.
 // `mb eval --host claude` delegates to the native `claude plugin eval`. The plugin is always passed
-// as a PATH (a bare name resolves to an installed plugin of the same name, U7 finding).
+// as a PATH (a bare name resolves to an installed plugin of the same name).
+import fs from 'node:fs';
 import { spawn } from 'node:child_process';
 
 /**
@@ -41,9 +42,9 @@ export function execCapture(cmd, args, opts = {}) {
 }
 
 /**
- * The exact `claude plugin eval` argv (§15.2), without the leading "claude".
+ * The exact `claude plugin eval` argv, without the leading "claude".
  * o: { pluginPath, jsonOut, outputDir, threshold, runs, model, judgeModel, maxCostUsd, caseGlob,
- *      scaffold (bool), configurable (bool) }
+ *      scaffold (bool), configurable (bool), keepTemp (bool) }
  * The variadic --allow-tools comes last so it cannot swallow another argument.
  */
 export function buildClaudeArgs(o) {
@@ -57,6 +58,7 @@ export function buildClaudeArgs(o) {
   if (o.maxCostUsd !== undefined) a.push('--max-cost-usd', String(o.maxCostUsd));
   if (o.caseGlob) a.push('--case', o.caseGlob);
   if (o.scaffold || o.configurable) a.push('--scaffold');
+  if (o.keepTemp) a.push('--keep-temp'); // keeps the sandbox, so tracePath stays readable
   if (o.configurable) a.push('--allow-tools', 'Bash(node:*)', 'Bash(sh:*)');
   return a;
 }
@@ -90,7 +92,43 @@ export function summarizeNative(json) {
 }
 
 /**
- * LLM judge for the Codex runner (§15.3): `claude -p` with the criteria and the last message.
+ * The final answer in a native trace.jsonl: the `result` text of the last `result` event.
+ * null when the trace is gone (the native runner deletes it unless --keep-temp) or has none.
+ */
+export function lastResultFromTrace(tracePath) {
+  let text;
+  try {
+    text = fs.readFileSync(tracePath, 'utf8');
+  } catch {
+    return null;
+  }
+  let last = null;
+  for (const line of text.split(/\r?\n/)) {
+    if (!line.startsWith('{')) continue;
+    try {
+      const e = JSON.parse(line);
+      if (e.type === 'result' && typeof e.result === 'string') last = e.result;
+    } catch { /* a truncated line */ }
+  }
+  return last;
+}
+
+/**
+ * Per-run details of one native case, in the shape the Codex runner records (for failure output):
+ * [{ error, graders: [{ name, passed, skipped, reason }], lastMessage|null, tracePath }].
+ */
+export function nativeRuns(nativeCase) {
+  const runs = Array.isArray(nativeCase?.arms?.with) ? nativeCase.arms.with : [];
+  return runs.map((r) => ({
+    error: r.error ?? null,
+    graders: (r.graders ?? []).map((g) => ({ name: g.name, passed: !!g.passed, skipped: g.scored === false, reason: g.explanation ?? '' })),
+    lastMessage: typeof r.tracePath === 'string' ? lastResultFromTrace(r.tracePath) : null,
+    tracePath: r.tracePath ?? null,
+  }));
+}
+
+/**
+ * LLM judge for the Codex runner: `claude -p` with the criteria and the last message.
  * Returns judge(criteria, lastMessage) -> { passed, reason } | null (null = no verdict -> SKIPPED).
  */
 export function makeJudge({ exec = execCapture, env = process.env, model } = {}) {

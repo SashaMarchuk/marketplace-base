@@ -12,7 +12,7 @@
 //   isIgnored(cwd, relPath) -> bool               (`git check-ignore -q`)
 //   lsFiles(cwd, args?) -> [POSIX rel paths]      (`git ls-files -z`)
 //   showFile(cwd, rev, relPath) -> Buffer | null  (`git show <rev>:<path>`; null if absent)
-//   lsRemoteTag(cwd, url, tag) -> commit | null   (prefers the peeled `^{}` line, SPEC §11 init)
+//   lsRemoteTag(cwd, url, tag) -> commit | null   (prefers the peeled `^{}` line)
 //
 // Errors carry a numeric `exitCode`, which tools/mb.mjs maps to the process exit code.
 

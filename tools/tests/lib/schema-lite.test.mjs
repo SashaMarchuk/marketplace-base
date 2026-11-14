@@ -1,4 +1,4 @@
-// Tests for tools/lib/schema-lite.mjs and the U2 schemas (plugin-src, marketplace-config, lock).
+// Tests for tools/lib/schema-lite.mjs and the repo schemas (plugin-src, marketplace-config, lock).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -56,7 +56,7 @@ test('unknown keywords and non-local refs throw', () => {
   assert.throws(() => validate({ $ref: '#/$defs/nope' }, 1), /unresolved/);
 });
 
-test('plugin-src schema (SPEC §3)', () => {
+test('plugin-src schema', () => {
   const s = loadSchema(ROOT, 'plugin-src');
   const good = {
     $schema: '../../tools/schemas/plugin-src.schema.json', name: 'code-review', version: '0.1.0',
@@ -82,7 +82,7 @@ test('plugin-src schema (SPEC §3)', () => {
   bad(s, { version: '1.0.0', description: 'x.' }, 'required', '');
 });
 
-test('marketplace-config schema (SPEC §5)', () => {
+test('marketplace-config schema', () => {
   const s = loadSchema(ROOT, 'marketplace-config');
   const good = {
     $schema: './tools/schemas/marketplace-config.schema.json', name: 'marketplace-base',
@@ -109,7 +109,7 @@ test('marketplace-config schema (SPEC §5)', () => {
   bad(s, { ...good, extra: 1 }, 'additionalProperties', '/extra');
 });
 
-test('lock schema (SPEC §14.2)', () => {
+test('lock schema', () => {
   const s = loadSchema(ROOT, 'lock');
   const good = {
     adopted: ['code-review'], lockVersion: 1,

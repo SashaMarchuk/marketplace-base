@@ -8,7 +8,7 @@ Any of these works, because updates do not need shared git history:
 
 - the GitHub **Use this template** button;
 - `gh repo create acme-skills --template SashaMarchuk/marketplace-base`;
-- `git clone https://github.com/SashaMarchuk/marketplace-base acme-skills`.
+- `git clone https://github.com/SashaMarchuk/marketplace-base acme-skills`. Then run `git remote rename origin base` (or `git remote remove origin`) and add your own repo as `origin`; otherwise `origin` still points at the base.
 
 ## 2. Initialise
 
@@ -20,10 +20,19 @@ Any of these works, because updates do not need shared git history:
 
 - renders the seed files (README, USAGE, AGENTS, LICENSE, `marketplace.config.json`, `policy/org.json`, `.gitignore`, CODEOWNERS, `openspec/config.yaml`) for your name; LICENSE keeps the base copyright line and adds yours;
 - deletes the examples you did not select;
-- writes `.mb-lock.json` with the base tag, its commit and the hash of every base-owned file;
+- writes `.mb-lock.json` with the base tag, its commit and the hash of every base-owned file. The commit comes from `base.url`, or from a local tag of the same name (a clone). If neither has the tag, init says which lookup failed and records no commit; the next `base-update` fills it in;
 - runs `./mb gen` and `./mb check`, then prints next steps.
 
-It refuses the name `marketplace-base` and refuses to run twice (an existing `.mb-lock.json`) unless you pass `--force`.
+It refuses the name `marketplace-base` and refuses to run twice (an existing `.mb-lock.json`) unless you pass `--force`. A forced re-run never overwrites your seed files. It writes only the seed files that are missing. With `--examples`, it also updates `includeExamples` and deletes the examples that are no longer selected.
+
+### Drop an example later
+
+Use either of these, then run `./mb gen` and commit:
+
+- `./mb adopt <p> && rm -rf plugins/<p>`. The example becomes yours and is then deleted. Base updates skip adopted examples.
+- Remove `<p>` from `includeExamples` in `marketplace.config.json` (or set it to `false`), then `rm -rf examples/plugins/<p>`. `./mb init --force --name <mkt> --display <s> --owner <name> --examples <the ones to keep>` does both for you, and does not touch your other seed files.
+
+Either way, `./mb check` (CHK-16) stays green and `base-update` never brings the example back.
 
 ## 3. Who owns what
 
@@ -49,18 +58,27 @@ To change base behaviour, open a PR against the base instead of editing B files.
 ```
 
 0. Stops (exit 2) if the working tree is not clean or the target tag is older than the locked tag.
-1. Picks the newest stable tag of `base.url` (pre-release tags such as `v1.3.0-rc.1` are never picked unless you pass `--to`).
+1. Picks the newest stable tag of `base.url` in `marketplace.config.json` (pre-release tags such as `v1.3.0-rc.1` are never picked unless you pass `--to`).
 2. Stops (exit 6) if you edited or added files under the base tooling (`tools/`, `.mb/ownership.json`, `.mb/base-version.json`, `.mb/migrations/`, `mb`, `mb.cmd`), unless `--force`.
 3. Fetches the tag, checks out the new tooling, and re-runs itself with it.
 4. Applies each file decision: unchanged base files are updated; files the base removed are deleted; files the base re-classified as yours are released (left in place); your D and S files are never touched.
 5. Runs any migrations for the versions crossed and reports the S files they edited.
 6. Writes the new lock, runs `./mb gen` and `./mb check --fast`, and prints a report.
 
-`--dry-run` prints the plan and writes nothing.
+`--dry-run` prints the paths that would change or conflict, and writes nothing. Add `--verbose` to list every path with its decision row.
+
+To update from a fork or a mirror, set `base.url` in `marketplace.config.json` and commit it. `base-update` reads `base.url` from that file and falls back to the copy in `.mb-lock.json`. The new lock records the URL it used. Do not edit `.mb-lock.json` by hand.
 
 ### Conflicts
 
 A conflict is a base-owned file you edited, or a file of yours at a path the new base adds. By default it is left untouched and the update exits 6.
+
+Exit 6 from conflicts is a partial update. The other files are already updated and the lock already names the new tag, so the tree is not clean. To finish:
+
+1. Commit the partial update: `git add -A && git commit -m "marketplace-base update to <tag> (conflicts pending)"`.
+2. Run `./mb base-update --to <tag> --force` to take the base version, or `--keep` to keep yours. Or revert your change, or upstream it to the base, and run `./mb base-update --to <tag>` again.
+
+The exit-6 stop for edited base tooling (step 2 above) is different: it happens before anything is changed. Revert those files, or pass `--force`.
 
 | Option | Effect |
 |---|---|
@@ -76,6 +94,8 @@ Set the repository variable `MB_BASE_UPDATE` to `true` to run `mb-base-update.ym
 
 - with a `MB_UPDATE_TOKEN` secret (PAT or GitHub App token with `contents`, `pull-requests` and `workflows` write), it opens the PR;
 - without it, it pushes the branch, skips workflow files, and writes a compare link and checklist to the job summary. Open the PR yourself, then run `./mb base-update` locally to update the workflow files. (Events made with the default `GITHUB_TOKEN` do not start PR checks, so the workflow never opens the PR with it.)
+
+The workflow runs on the default branch only, and a manual run from any other branch is skipped. If branch `mb/base-update-<tag>` already exists, the run pushes nothing. Delete the branch to rebuild it on the next run.
 
 ## 5. Adopt an example
 

@@ -1,6 +1,8 @@
-// tools/cmd/config.mjs: `mb config resolve <p> [--skill s] [--cwd d] [--json]` (SPEC §11, §7.5).
+// tools/cmd/config.mjs: `mb config resolve <p> [--skill s] [--cwd d] [--json]` and
+// `mb config set <p> --layer <l> [--shared] <ptr> <json> [--skill s] [--cwd d]`.
 // Runs the vendored tier-a resolver of one skill (<pdir>/skills/<s>/_mb/resolve.mjs) exactly as a
-// skill would, and prints its result as a table (or raw with --json). Exits like the resolver.
+// skill would. resolve prints a table (or raw with --json); set is a thin pass-through to
+// `resolve.mjs set` and prints its JSON. Both exit like the resolver.
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { parse, canonical } from '../kit/json.mjs';
@@ -8,9 +10,13 @@ import { isDir, isFile } from '../lib/fsx.mjs';
 import { findPlugin, listSkills, isKebab } from './new.mjs';
 
 export const name = 'config';
-export const summary = 'Show the resolved configuration of a plugin (tier-a resolver).';
-export const usage = 'mb config resolve <p> [--skill s] [--cwd d] [--json]';
-export const options = { skill: { type: 'string' }, cwd: { type: 'string' }, json: { type: 'boolean' } };
+export const summary = 'Show (resolve) or write (set) the configuration of a plugin (tier-a resolver).';
+export const usage = 'mb config resolve <p> [--skill s] [--cwd d] [--json]\n' +
+  '       mb config set <p> --layer user|project|project-local [--shared] [--skill s] [--cwd d] [--] <ptr> <json>';
+export const options = {
+  skill: { type: 'string' }, cwd: { type: 'string' }, json: { type: 'boolean' },
+  layer: { type: 'string' }, shared: { type: 'boolean' },
+};
 
 /** Value at a JSON Pointer ("" = whole doc); undefined if absent. */
 function getPointer(doc, ptr) {
@@ -47,11 +53,18 @@ export function formatTable(out) {
 
 export async function run(argv, ctx) {
   const [sub, p, ...extra] = ctx.args.positionals;
-  if (sub !== 'resolve') throw ctx.usageError(sub === undefined ? 'missing "resolve"' : `unknown subcommand "${sub}"`);
+  if (sub !== 'resolve' && sub !== 'set') throw ctx.usageError(sub === undefined ? 'missing "resolve" or "set"' : `unknown subcommand "${sub}"`);
   if (p === undefined) throw ctx.usageError('missing plugin name');
-  if (extra.length) throw ctx.usageError(`unexpected argument "${extra[0]}"`);
-  if (!isKebab(p)) throw ctx.usageError(`bad plugin name "${p}"`);
   const v = ctx.args.values;
+  if (sub === 'set') {
+    if (v.layer === undefined) throw ctx.usageError('set needs --layer user|project|project-local');
+    if (extra.length !== 2) throw ctx.usageError('set takes <ptr> <json>');
+    if (v.json) throw ctx.usageError('--json belongs to "resolve" (set always prints JSON)');
+  } else {
+    if (extra.length) throw ctx.usageError(`unexpected argument "${extra[0]}"`);
+    if (v.layer !== undefined || v.shared) throw ctx.usageError('--layer/--shared belong to "set"');
+  }
+  if (!isKebab(p)) throw ctx.usageError(`bad plugin name "${p}"`);
 
   const pl = findPlugin(ctx.root, p);
   if (!pl) throw ctx.fail(1, `no plugin "${p}"`);
@@ -66,11 +79,15 @@ export async function run(argv, ctx) {
   const cwd = v.cwd === undefined ? ctx.cwd : path.resolve(ctx.cwd, v.cwd);
   if (!isDir(cwd)) throw ctx.usageError(`--cwd ${v.cwd}: not a directory`);
 
-  const r = spawnSync(process.execPath, [resolverOf(skill), '--plugin', p], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  // The resolver validates layer, pointer and value itself (exit 2 on bad input).
+  const args = sub === 'set'
+    ? ['set', '--plugin', p, '--layer', v.layer, ...(v.shared ? ['--shared'] : []), ...extra]
+    : ['--plugin', p];
+  const r = spawnSync(process.execPath, [resolverOf(skill), ...args], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
   if (r.error) throw r.error;
   if (r.stderr) ctx.stderr(r.stderr);
   const code = r.status ?? 1;
-  if (v.json) {
+  if (v.json || sub === 'set') {
     ctx.stdout(r.stdout);
     return code;
   }

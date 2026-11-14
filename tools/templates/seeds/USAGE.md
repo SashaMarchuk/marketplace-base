@@ -10,7 +10,11 @@ Add the marketplace once, then install the plugins you want (replace `<p>` with 
 |---|---|---|
 | Claude Code | `claude plugin marketplace add {{repo}}` | `claude plugin install <p>@{{mkt}}` |
 | Codex | `codex plugin marketplace add {{repo}}` | `codex plugin add <p>@{{mkt}}` |
+| Claude Code, from a local clone | `claude plugin marketplace add <path-to-clone>` | `claude plugin install <p>@{{mkt}}` |
+| Codex, from a local clone | `codex plugin marketplace add <path-to-clone>` | `codex plugin add <p>@{{mkt}}` |
 | Plain skills folder | clone the repo | `./mb export skills ~/.agents/skills` (Codex) or `~/.claude/skills` (Claude Code) |
+
+A marketplace added from a local clone is read live from that folder: editing, switching branches in, or deleting the clone changes or breaks what is installed. Use the `owner/repo` form for a stable install.
 
 ## Use a skill
 
@@ -37,7 +41,7 @@ Some skills are **configurable** (marked in the catalog). They read settings fro
 2. org policy and 3. team policy (shipped with the plugin; can lock values)
 4. project: `.{{mkt}}/config.json` in your repo (commit it to share with your team)
 5. user: your personal file (path below)
-6. project-local: `.{{mkt}}/config.local.json` in your repo (gitignored, just for you)
+6. project-local: `.{{mkt}}/config.local.json` in your repo (gitignored, just for you, and only in this checkout: another clone of the same repo has its own)
 
 Example user file, setting the meeting-notes sections and a shared language:
 
@@ -57,6 +61,16 @@ Exact file locations on each OS:
 
 You can also just tell the skill your preference ("always use German"). It saves it to your user file. If a value is locked by policy, the skill says so and keeps the locked value.
 
+To set a value yourself, run the command the skill uses. From a clone of this marketplace (pointer and value are a JSON pointer and a JSON value):
+
+```sh
+./mb config set <p> --layer user /language '"de"'                          # your personal file
+./mb config set <p> --layer project /sections '["Summary","Decisions"]' --cwd <your-repo>   # shared with the repo
+./mb config resolve <p> --cwd <your-repo>                                 # show the merged result
+```
+
+Without a clone, call the resolver that ships inside the installed skill: `node "<skill-dir>/_mb/resolve.mjs" set --plugin <p> --layer user|project|project-local <pointer> '<json>'`. A refused write (for example a locked value) changes nothing. Details: [docs/base/config.md](docs/base/config.md#writing-settings).
+
 Values like API keys never go in these files as text. Use a reference such as `"${env:MY_TOKEN}"`.
 
 ## Permissions
@@ -65,8 +79,8 @@ A configurable skill runs one command to read its settings: `node "<skill-dir>/_
 
 | Host | To allow it without a prompt |
 |---|---|
-| Claude Code | Add `"Bash(node:*)"` to `permissions.allow` in your settings, or pass `--allowedTools "Bash(node:*)"` to `claude -p` (headless runs need this) |
-| Codex | Approve the `node …/_mb/resolve.mjs` command when asked. Reading settings works in the `workspace-write` sandbox; saving a preference to your user file needs approval, or use the project-local file |
+| Claude Code | Add `"Bash(node:*)"` to `permissions.allow` in your settings. For headless runs, put the prompt **first**: `claude -p "<prompt>" --allowedTools "Bash(node:*)"` (or `--allowedTools=Bash(node:*)`). `--allowedTools` takes several values, so a prompt after it is swallowed ("Input must be provided") |
+| Codex | Approve the `node …/_mb/resolve.mjs` command when asked. Reading settings works in the `workspace-write` sandbox; saving a preference to your user file (outside the workspace and temp dirs) needs approval, or the skill asks to use the project-local file instead |
 
 Without Node.js or bun, the skill follows a slower fallback (it may generate and test a small helper program, once). See [docs/base/config.md](docs/base/config.md#tiers).
 

@@ -1,12 +1,13 @@
-// tools/lib/gen/build.mjs: the generator API (SPEC §4, `mb gen`, CHK-10).
+// tools/lib/gen/build.mjs: the generator API (`mb gen`, CHK-10).
 //
-//   build(root) -> { files, stale, problems }    pure: reads the repo, writes nothing
+//   build(root) -> { files, stale, problems, skipped }    pure: reads the repo, writes nothing
 //     files:    Map<POSIX rel, Buffer>  every expected G file, plus every marker-bearing file whose
 //               marker bodies gen owns (README.md, USAGE.md, AGENTS.md, .gitignore, SKILL.md)
 //     stale:    sorted POSIX rels of existing files under some skills/<s>/_mb/ that gen no longer
 //               produces (removed kit files, deleted team files, a plugin that stopped being
 //               configurable); gen deletes them
 //     problems: [{ path, message }]  marker files gen could not fill (left untouched)
+//     skipped:  plugin dirs without plugin.src.json (nothing is generated for them)
 //   diff(root, result) -> [{ path, kind: 'changed'|'missing'|'stale' }]   sorted by path
 //   apply(root, result) -> { written: [rel], removed: [rel] }            writes only what differs
 //
@@ -83,7 +84,7 @@ export async function build(root) {
     }
   }
 
-  return { files, stale: stale.sort(byPath), problems };
+  return { files, stale: stale.sort(byPath), problems, skipped: repo.skipped };
 }
 
 export function diff(root, result) {

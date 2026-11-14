@@ -63,3 +63,11 @@ test('CHK-12 agrees with the vectors on policy texts and enforced conflicts', ()
   }
   assert.ok(checked >= 10);
 });
+
+test('CHK-12 reports a plugin matched by org access.deny as info', async () => {
+  const r = await runRule('CHK-12', makeRepo({ 'policy/org.json': '{"access":{"deny":["legacy-*","de*"]}}' }));
+  assert.equal(errors(r).length, 0);
+  assert.equal(r.length, 1);
+  assert.equal(r[0].severity, 'info');
+  assert.equal(r[0].message, 'plugin demo matches org access.deny "de*" (blocked by org policy)');
+});

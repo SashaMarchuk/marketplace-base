@@ -1,8 +1,8 @@
-// CHK-21: OpenSpec shape (SPEC sections 12, 19). Each openspec/specs/*/spec.md has >= 1
+// CHK-21: OpenSpec shape. Each openspec/specs/*/spec.md has >= 1
 // "### Requirement:" and each requirement >= 1 "#### Scenario:". Requirements in the base's mb-*
 // specs carry an ID `MB-<CAP>-NNN`; IDs are unique across all specs. Cited runners exist:
 // "(vector <NNN-slug>)" -> tools/kit/vectors/<NNN-slug>/, "(test <path>)" -> that file; base (mb-*)
-// specs never cite examples/ files (ORCH O18).
+// specs never cite examples/ files.
 
 export const id = 'CHK-21';
 export const severity = 'error';

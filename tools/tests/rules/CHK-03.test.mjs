@@ -32,7 +32,7 @@ test('CHK-03 warns on an unverified codex authentication value', async () => {
   assert.equal(warnings(r).length, 1);
 });
 
-test('CHK-03 rejects the reserved plugin names constructor and prototype (O13)', async () => {
+test('CHK-03 rejects the reserved plugin names constructor and prototype', async () => {
   for (const n of ['constructor', 'prototype']) {
     const r = errors(await runRule('CHK-03', makeRepo({ [`plugins/${n}/plugin.src.json`]: src({ name: n }) })));
     assert.ok(r.some((e) => e.path === `plugins/${n}/plugin.src.json`), n);

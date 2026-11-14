@@ -1,11 +1,12 @@
-// tools/lib/gen/repo.mjs: load the generator's inputs (SPEC §3, §5) into one plain model.
+// tools/lib/gen/repo.mjs: load the generator's inputs into one plain model.
 //
 // loadRepo(root) -> {
 //   root, config, mkt, layers, owner,
 //   plugins: [{ name, dir, example, included, src, configurable, defaults, schemaBytes,
 //               skills: [{ name, dir, skillMd, frontmatter }], hostSpecific: [component] }],
 //   included: plugins that go into the marketplaces and catalog, sorted by name,
-//   orgBytes, teamFiles: [{ name, bytes }], kitDir
+//   orgBytes, teamFiles: [{ name, bytes }], kitDir,
+//   skipped: [POSIX rel]   plugin dirs with no plugin.src.json (not generated; `mb gen` names them)
 // }
 // Every plugin dir that has a plugin.src.json is loaded (so a not-included example still gets its own
 // manifests and _mb, keeping its dir self-consistent); only `included` reaches the marketplaces.
@@ -109,7 +110,7 @@ function loadPlugin(root, rel, example) {
     if (defaults === null || typeof defaults !== 'object' || Array.isArray(defaults)) {
       throw new GenError(`${rel}/config.defaults.json must hold a JSON object`);
     }
-    // A top-level `$schema` is an editor hint (SPEC 6.2), not a setting: never vendor it (O13).
+    // A top-level `$schema` is an editor hint, not a setting: never vendor it.
     delete defaults.$schema;
     const schemaRel = `${rel}/config.schema.json`;
     if (isFile(fromPosix(root, schemaRel))) {
@@ -136,10 +137,14 @@ export function loadRepo(root) {
   schemaErrors('marketplace-config', config, cfgRel);
 
   const plugins = [];
+  const skipped = [];
   for (const { dir, example } of PLUGIN_ROOTS) {
     for (const p of listDirs(fromPosix(root, dir))) {
       const rel = `${dir}/${p}`;
-      if (!isFile(fromPosix(root, `${rel}/plugin.src.json`))) continue;
+      if (!isFile(fromPosix(root, `${rel}/plugin.src.json`))) {
+        skipped.push(rel);
+        continue;
+      }
       const plugin = loadPlugin(root, rel, example);
       plugin.included = !example || exampleIncluded(config.includeExamples, p);
       plugins.push(plugin);
@@ -172,6 +177,7 @@ export function loadRepo(root) {
     owner: config.owner,
     plugins,
     included,
+    skipped,
     orgBytes,
     teamFiles,
     kitDir: fromPosix(root, 'tools/kit'),

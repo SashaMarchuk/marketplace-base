@@ -1,4 +1,4 @@
-// tools/tests/vectors.test.mjs: SPEC §20 conformance vectors against tools/kit/resolve.mjs (byte + exit),
+// tools/tests/vectors.test.mjs: conformance vectors against tools/kit/resolve.mjs (byte + exit),
 // run as a real process (`<node> resolve.mjs merge < input.json`), plus engine cases no vector covers.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,8 +14,8 @@ const RESOLVE = path.join(KIT, 'resolve.mjs');
 const VDIR = path.join(KIT, 'vectors');
 const vectors = fs.readdirSync(VDIR, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
 
-test('all 57 required vectors are present, each with its 3 files', () => {
-  assert.ok(vectors.length >= 57);
+test('all 58 required vectors are present, each with its 3 files', () => {
+  assert.ok(vectors.length >= 58);
   for (const v of vectors) for (const f of ['input.json', 'expected.json', 'expected.exit']) assert.ok(fs.existsSync(path.join(VDIR, v, f)), `${v}/${f}`);
 });
 
@@ -54,7 +54,7 @@ test('plugin named like a prototype member does not read inherited entries', () 
   }
 });
 
-test('provenance on a type change lists exactly the current leaves (U1 spec-decided 4)', () => {
+test('provenance on a type change lists exactly the current leaves', () => {
   // scalar -> object
   let r = run({ a: 1 }, { [USER]: '{"settings":{"a":{"b":2}}}' });
   assert.deepEqual(r.provenance, { '/a/b': 'user' });

@@ -1,4 +1,4 @@
-// tools/lib/policy/load.mjs: read and validate the policy inputs of `mb policy emit` (SPEC §13, §6.2).
+// tools/lib/policy/load.mjs: read and validate the policy inputs of `mb policy emit`.
 //
 // Policy files (policy/org.json, policy/teams/<t>.json) get the resolver's POLICY parse: fail closed.
 //   - lexical errors (config-mode JSON: BOM, duplicate keys, floats, bad key syntax, ...)  POLICY_INVALID

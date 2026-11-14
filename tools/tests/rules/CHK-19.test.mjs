@@ -28,3 +28,10 @@ test('CHK-19 fails on a schema violation and on a missing file', async () => {
   r = errors(await runRule('CHK-19', makeRepo({ '.agents/plugins/marketplace.json': MKT }), { toolRoot: toolRoot() }));
   assert.match(r[0].message, /missing/);
 });
+
+test('CHK-19 leaves a plugin with no plugin.src.json to CHK-03 (gen cannot create its manifest)', async () => {
+  const root = makeRepo({ '.agents/plugins/marketplace.json': MKT, 'plugins/demo/.codex-plugin/plugin.json': '{"name":"demo","version":"0.1.0"}', 'plugins/bare/skills/x/SKILL.md': 'x\n' });
+  assert.deepEqual(await runRule('CHK-19', root, { toolRoot: toolRoot() }), []);
+  const c3 = errors(await runRule('CHK-03', root));
+  assert.match(c3[0].fix, /^write plugins\/bare\/plugin\.src\.json/);
+});

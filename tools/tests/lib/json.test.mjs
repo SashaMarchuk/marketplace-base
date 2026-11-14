@@ -102,7 +102,7 @@ test('tryParse returns errors instead of throwing', () => {
   assert.equal(r.error.code, 'BAD_NUMBER');
 });
 
-test('canonical output is byte-equal to the SPEC §7.5 example', () => {
+test('canonical output is byte-equal to the documented example', () => {
   const example = '{"blocked":false,"errors":[],"locked":["/checks/security"],"ok":true,"plugin":"code-review","provenance":{"/checks/security":"org","/maxItems":"user"},"settings":{"checks":{"security":true},"maxItems":5},"tier":"a","warnings":[{"code":"LOCKED_OVERRIDE","layer":"user","path":"/checks/security"}]}';
   const value = {
     warnings: [{ path: '/checks/security', layer: 'user', code: 'LOCKED_OVERRIDE' }],

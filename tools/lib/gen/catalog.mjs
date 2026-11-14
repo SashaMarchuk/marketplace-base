@@ -1,4 +1,4 @@
-// tools/lib/gen/catalog.mjs: README `catalog` and `install` marker bodies and docs/catalog.md (SPEC §4.7).
+// tools/lib/gen/catalog.mjs: README `catalog` and `install` marker bodies and docs/catalog.md.
 //
 // Org policy status per plugin, from policy/org.json (docs only; the resolver is the real check):
 //   blocked   org access.deny matches, org access.allow exists and does not match, or

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "codex-marketplace.schema.json",
-  "title": "Generated .agents/plugins/marketplace.json (SPEC 4.5; shape pinned by the 2026-11-14 install spike)",
+  "title": "Generated .agents/plugins/marketplace.json (shape verified with Codex CLI 0.164.0, see docs/base/hosts.md)",
   "type": "object",
   "additionalProperties": false,
   "required": ["name", "interface", "plugins"],

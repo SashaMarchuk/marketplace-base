@@ -7,10 +7,12 @@ Follow the steps in order. Do not skip a step, and never merge configuration by 
 ## 1. Use this file only when tier a cannot run
 - Come here only when neither `node` (20 or later) nor `bun` exists, or when `resolve.mjs` exited
   with a code outside {0, 2, 3, 4, 5}, or printed no JSON (a crash, or a runtime that is too old).
+  Exit 9 (`RUNTIME_UNSUPPORTED`) means the node it ran on is older than 20: come here.
 - Exit 5 is never a reason to come here: it means "unsupported spec feature". Stop and report it.
 - Exit meanings, for every tier: 0 = resolved (use `settings`, respect `locked`); 2 = usage error
   (stop, report); 3 = config or policy error (stop, show `errors`); 4 = blocked by deny, allow or
-  disable (tell the user the skill is blocked and name the `layer` from `warnings`, then stop);
+  disable (tell the user the skill is blocked and name the `layer` from `warnings`, then stop;
+  exit 4 is authoritative even though the output still says `"ok":true` with `settings`);
   5 = unsupported spec feature (stop, report).
 - Report the `tier` value from the output (`a`, `b` or `c`) in every summary you give the user.
 
@@ -36,11 +38,16 @@ Follow the steps in order. Do not skip a step, and never merge configuration by 
 - Otherwise continue. Generated mergers are allowed by default.
 
 ## 5. Tier b: try a saved merger
-- Look in the mergers dir for `K.py` with `K.py.sha256`, or `K.ps1` with `K.ps1.sha256`.
-- Compute the sha256 of the merger file. If it differs from the `.sha256` file, ignore the merger and
-  go to step 6.
-- Run `<runtime> K.<ext> resolve` with the working directory = the user's working directory and the
-  environment `MB_KIT=<skill-dir>/_mb` and `MB_TIER=b`.
+- Look in the mergers dir `M` for `K.py` with `K.py.sha256`, or `K.ps1` with `K.ps1.sha256`.
+- Never run a saved merger except through the guarded command below: it checks the hash and runs
+  the merger only if it matches, in one command. Never hash in one command and run in another, and
+  never batch a separate hash check with a run. Run it with the working directory = the user's
+  working directory (`<ps>` = `pwsh`, else `powershell`):
+  - POSIX (`K.py`):
+    `if [ "$(python3 -c 'import hashlib,sys;print(hashlib.sha256(open(sys.argv[1],"rb").read()).hexdigest())' "M/K.py")" = "$(tr -d ' \r\n' < "M/K.py.sha256")" ]; then MB_KIT="<skill-dir>/_mb" MB_TIER=b python3 "M/K.py" resolve; else echo HASH_MISMATCH; fi`
+  - PowerShell (`K.ps1`):
+    `if ((Get-FileHash -Algorithm SHA256 "M\K.ps1").Hash.ToLower() -eq (Get-Content -Raw "M\K.ps1.sha256").Trim()) { $env:MB_KIT="<skill-dir>\_mb"; $env:MB_TIER="b"; <ps> -NoProfile -File "M\K.ps1" resolve } else { "HASH_MISMATCH" }`
+- `HASH_MISMATCH`: the merger was edited; ignore it and go to step 6.
 - Exits 0, 2, 3, 4 and 5 mean what step 1 says; use the output (it has `"tier":"b"`) and stop here.
 - Any other exit, or no JSON on stdout: ignore the saved merger and go to step 6.
 
@@ -88,12 +95,14 @@ Follow the steps in order. Do not skip a step, and never merge configuration by 
 
 ## 10. Save
 - Only after every vector and the real-mode check pass: write `K.<ext>` and `K.<ext>.sha256` (the
-  sha256 hex of `K.<ext>`) to the mergers dir. Create the dir if needed.
+  lowercase sha256 hex of `K.<ext>`, nothing else) to the mergers dir. Create the dir if needed.
 - If the write fails (a sandbox may deny paths outside the workspace), use the merger for this run
   only, tell the user "merger not cached", and suggest rerunning with approval.
 
 ## 11. Run (tier c)
-- Run the merger in `resolve` mode as in step 5, but with `MB_TIER=c`.
+- If it was saved in step 10, run it with the guarded command of step 5, but with `MB_TIER=c`.
+  If it was not cached, run the verified temp merger the same way without the hash check
+  (`MB_KIT=<skill-dir>/_mb MB_TIER=c <rt> merger resolve`).
 - Exits 0, 2, 3, 4 and 5 mean what step 1 says. Any other exit, or no JSON: stop and say
   "configuration could not be resolved".
 
@@ -102,6 +111,9 @@ Follow the steps in order. Do not skip a step, and never merge configuration by 
 - When the user asks to remember a preference, show the user-layer path (MERGE-SPEC "Paths") and the
   exact JSON to add under `plugins.<p>.settings` (`<p>` = `plugin` in `_mb/kit.json`), and ask the
   user to apply it.
+- If the user wants it for this project only, show the project-local path instead (MERGE-SPEC
+  "Paths") and also ask them to make sure `<root>/.<mkt>/.gitignore` contains the line
+  `config.local.json`, so the file is never committed.
 
 ## 13. Scope
 - Tiers b and c serve this local resolution only. `mb policy emit`, `mb check` and CI always use

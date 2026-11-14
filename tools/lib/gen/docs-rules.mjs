@@ -1,5 +1,5 @@
 // tools/lib/gen/docs-rules.mjs: docs/base/rules.md (G), generated from tools/lib/rules/CHK-NN.mjs.
-// Rule module contract (U5): exports id, severity ('error'|'warning'|'info'), title, fix, slow?.
+// Rule module contract: exports id, severity ('error'|'warning'|'info'), title, fix, slow?.
 
 import fs from 'node:fs';
 import path from 'node:path';

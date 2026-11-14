@@ -1,16 +1,18 @@
 #!/usr/bin/env node
-// tools/kit/resolve.mjs: tier-a config resolver and writer (SPEC §7, §9). Vendored byte-for-byte
+// tools/kit/resolve.mjs: tier-a config resolver and writer. Vendored byte-for-byte
 // into every configurable skill as skills/<s>/_mb/resolve.mjs, next to json.mjs.
 //
-//   resolve.mjs [--plugin <p>]          real mode: build INPUT from disk (§7.2), print OUTPUT
+//   resolve.mjs [--plugin <p>]          real mode: build INPUT from disk, print OUTPUT
 //   resolve.mjs merge                   vector mode: INPUT JSON on stdin
 //   resolve.mjs set   [--plugin <p>] --layer user|project|project-local [--shared] <ptr> <json>
 //   resolve.mjs unset [--plugin <p>] --layer user|project|project-local [--shared] <ptr>
 //
 // Security: imports only ./json.mjs and node: built-ins; the only child process is
-// `git rev-parse --show-toplevel` (argument array, no shell). Only the candidate paths of §6.1 are
-// read; nothing walks up from cwd. All objects built here are null-prototype.
-// Output: exactly one compact canonical JSON object + "\n" on stdout, for every exit in {0,2,3,4,5}.
+// `git rev-parse --show-toplevel` (argument array, no shell). Only the documented candidate paths are
+// read; nothing walks up from cwd. All objects built here are null-prototype. One extra path, never part of
+// resolution: a project-local write reads/appends <root>/.<mkt>/.gitignore so config.local.json is ignored.
+// Output: exactly one compact canonical JSON object + "\n" on stdout, for every exit in {0,2,3,4,5,9}.
+// Exit 9 = RUNTIME_UNSUPPORTED (node < 20, checked before any work): the skill goes to FALLBACK.md.
 // KIT = $MB_KIT if set, else the directory of this file (MERGE-SPEC "Real mode").
 
 import fs from 'node:fs';
@@ -24,7 +26,7 @@ const ALL_LAYERS = ['skill-defaults', 'org', 'team', 'project', 'user', 'project
 const PERSONAL = new Set(['project', 'user', 'project-local']);
 const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const PATTERN_RE = /^[a-z0-9*][a-z0-9*-]{0,63}$/;
-const KEY_RE = /^[A-Za-z0-9_-]{1,64}$/;
+const KEY_RE = /^[A-Za-z0-9_:-]{1,64}$/; // `:` allows tool-identity keys such as mcp:server
 const TOP_KEYS = ['$schema', 'settings', 'plugins', 'enforced', 'access', 'team', 'merge'];
 
 const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -50,7 +52,7 @@ function output(plugin, tier, r) {
 }
 const failResult = (code, errors, warnings) => ({ exit: code, ok: false, errors, warnings });
 
-// ---------- layer file parsing (§6.2) ----------
+// ---------- layer file parsing ----------
 function checkAccess(a) {
   if (!isObj(a)) return false;
   for (const k of Object.keys(a)) {
@@ -173,8 +175,8 @@ function glob(pat, name) {
   return p === pat.length;
 }
 
-// ---------- core (§7.3) ----------
-// Personal layer paths (§6.1). No walk-up: root = gitRoot ?? cwd. user is undefined when unknown.
+// ---------- core ----------
+// Personal layer paths. No walk-up: root = gitRoot ?? cwd. user is undefined when unknown.
 export function layerPaths(env, mkt, W) {
   const root = env.gitRoot ?? env.cwd, win = env.platform === 'win32', sep = win ? '\\' : '/', x = env.XDG_CONFIG_HOME;
   const paths = { project: root + sep + '.' + mkt + sep + 'config.json', 'project-local': root + sep + '.' + mkt + sep + 'config.local.json' };
@@ -261,7 +263,7 @@ export function core(I, read) {
   }
 }
 
-// ---------- real mode (§7.2) ----------
+// ---------- real mode ----------
 const SELF_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 function gitRoot(cwd) {
@@ -304,7 +306,7 @@ export function realInput(kitDir, kit) {
   return { I, read };
 }
 
-// ---------- set / unset (§9) ----------
+// ---------- set / unset ----------
 // Minimal checker for the config schema subset: type, enum, properties, items, minimum, maximum, maxLength.
 function schemaOk(s, v) {
   if (!isObj(s)) return true;
@@ -330,13 +332,23 @@ function subSchema(s, ptr) {
   return s;
 }
 
+// Keep project-local private: make sure <dir>/.gitignore has the line <name> (create or append; never
+// rewrite existing lines; no git call, so it also works outside a repo or before `git init`).
+function ignoreLocal(dir, name) {
+  const gi = path.join(dir, '.gitignore');
+  let txt = '';
+  try { txt = fs.readFileSync(gi, 'utf8'); } catch (e) { if (e.code !== 'ENOENT') throw e; }
+  if (txt.split(/\r?\n/).some((l) => l.trim() === name)) return;
+  fs.appendFileSync(gi, (txt && !txt.endsWith('\n') ? '\n' : '') + name + '\n');
+}
+
 function writeOp(op, args, kitDir, kit) {
   const { layer, shared } = args, [ptr, rawValue] = args.positionals;
   const usage = (m) => { throw Object.assign(new Fail(2, { code: 'USAGE' }), { msg: m }); };
   if (!PERSONAL.has(layer)) usage('--layer must be user, project or project-local');
   if (args.positionals.length !== (op === 'set' ? 2 : 1)) usage(`${op}: wrong number of arguments`);
   if (typeof ptr !== 'string' || !ptr.startsWith('/') || !segs(ptr).every((s) => KEY_RE.test(s) && !FORBIDDEN_KEYS.includes(s))) {
-    usage('pointer segments must match ^[A-Za-z0-9_-]{1,64}$');
+    usage('pointer segments must match ^[A-Za-z0-9_:-]{1,64}$');
   }
   let value;
   if (op === 'set') {
@@ -378,6 +390,7 @@ function writeOp(op, args, kitDir, kit) {
   }
   try {
     fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+    if (layer === 'project-local') ignoreLocal(path.dirname(file), path.basename(file));
     const tmp = path.join(path.dirname(file), `.${path.basename(file)}.${process.pid}.${Date.now()}.tmp`);
     fs.writeFileSync(tmp, canonicalPretty(d), { mode: 0o600, flag: 'wx' });
     try { fs.renameSync(tmp, file); } catch (e) { try { fs.unlinkSync(tmp); } catch { /* gone */ } throw e; }
@@ -411,8 +424,19 @@ function parseCli(argv) {
   return out;
 }
 
-export function main(argv) {
+// node 20+ is required (bun reports its node-compatible version in process.versions.node).
+export const MIN_NODE = 20;
+export function runtimeSupported(versions) {
+  return Number(String((versions && versions.node) || '0').split('.')[0]) >= MIN_NODE;
+}
+
+export function main(argv, versions = process.versions) {
   let plugin = null, tier = 'a', r;
+  if (!runtimeSupported(versions)) {
+    r = { ...failResult(9, [{ code: 'RUNTIME_UNSUPPORTED' }], []), msg: `node ${MIN_NODE} or later required (found ${versions.node}); follow FALLBACK.md` };
+    process.stderr.write(`resolve.mjs: ${r.msg}\n`);
+    return { text: output(plugin, tier, r), exit: 9 };
+  }
   try {
     let args;
     try { args = parseCli(argv); } catch (e) { throw Object.assign(new Fail(2, { code: 'USAGE' }), { msg: e.message }); }

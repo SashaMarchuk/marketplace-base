@@ -1,4 +1,4 @@
-// CHK-05: skill names unique across the marketplace, so a flat export works (SPEC section 12).
+// CHK-05: skill names unique across the marketplace, so a flat export works.
 
 export const id = 'CHK-05';
 export const severity = 'error';

@@ -1,6 +1,6 @@
-// tools/cmd/github.mjs: `mb github setup [--dry-run] [--require-codeowners]` (SPEC section 16).
+// tools/cmd/github.mjs: `mb github setup [--dry-run] [--require-codeowners]`.
 //
-// No plan detection: the plan field of the API is null for normal tokens (spike S7). Every step is
+// No plan detection: the plan field of the API is null for normal tokens. Every step is
 // TRIED and degrades on HTTP 403/404/422:
 //   1. GET repos/{owner}/{repo}            -> full name, private, owner type/login, default branch
 //   2. rulesets from tools/templates/github/ruleset.json (branch ruleset + `v*` tag ruleset);

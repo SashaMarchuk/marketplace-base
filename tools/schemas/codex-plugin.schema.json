@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "codex-plugin.schema.json",
-  "title": "Generated .codex-plugin/plugin.json (SPEC 4.2; shape pinned by the 2026-11-14 install spike)",
+  "title": "Generated .codex-plugin/plugin.json (shape verified with Codex CLI 0.164.0, see docs/base/hosts.md)",
   "type": "object",
   "additionalProperties": false,
   "required": ["name", "version", "description", "author"],

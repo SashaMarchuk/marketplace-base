@@ -1,4 +1,4 @@
-// tools/lib/derive.mjs: the derive/update proof (SPEC §14.4, `mb test --derive`) and the helpers
+// tools/lib/derive.mjs: the derive/update proof (`mb test --derive`) and the helpers
 // that tools/tests/derive.test.mjs shares with it.
 //
 // API:
@@ -10,9 +10,9 @@
 //   copyTree(src, dst, skip)          recursive copy, skipping top-level-or-nested names in `skip`
 //   commitAll(dir, env, msg)
 //   deriveTemplateCopy(bareUrl, tag, dir, env)   "Use this template": the tag's files, fresh history
-//   scriptedEdits(dir, env)           §14.4 step 2 D/S edits (plugin, README text, policy, workflow, adopt)
+//   scriptedEdits(dir, env)           derive-proof D/S edits (plugin, README text, policy, workflow, adopt)
 //   snapshotDS(dir) -> Map rel -> hash   D and S files (hash rule) of a derived repo
-//   deriveProof({ root, stdout, stderr }) -> exit code   §14.4 against the base repo at `root`
+//   deriveProof({ root, stdout, stderr }) -> exit code   the derive proof against the base repo at `root`
 //
 // The proof only READS the base repo at `root` (git clone --bare of its HEAD and tags); every write
 // happens in a temp dir, which is removed afterwards (set MB_KEEP_TMP=1 to keep it).
@@ -142,7 +142,7 @@ function nextPatch(tag) {
   return `v${t.major}.${t.minor}.${t.patch + 1}`;
 }
 
-/** §14.4 against the base repo at `root`. Returns 0 when every step passes. */
+/** The derive proof against the base repo at `root`. Returns 0 when every step passes. */
 export async function deriveProof({ root, stdout = (t) => process.stdout.write(t), stderr = (t) => process.stderr.write(t) } = {}) {
   const env0 = process.env;
   if (run('git', ['rev-parse', '--verify', '-q', 'HEAD^{commit}'], { cwd: root, env: env0 }).code !== 0) {
@@ -171,7 +171,9 @@ export async function deriveProof({ root, stdout = (t) => process.stdout.write(t
     }
     const froms = tags.filter((t) => isStableTag(t) && compareTags(t, target) < 0).sort(compareTags).reverse().slice(0, 2);
     if (!froms.length) {
+      // Legitimate only before the first release (no N-1 yet); never silent in CI.
       stdout('derive proof: SKIPPED: there is no earlier stable tag to derive from (needs at least one released tag)\n');
+      if (env0.GITHUB_ACTIONS === 'true') stdout('::warning title=derive proof skipped::no earlier stable tag (vX.Y.Z) to derive from; push the release tag so the next run proves N-1/N-2 derivation\n');
       return 0;
     }
 

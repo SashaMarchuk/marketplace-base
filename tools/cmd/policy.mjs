@@ -1,4 +1,4 @@
-// tools/cmd/policy.mjs: `mb policy emit --host claude|codex [--team t] [--out dir]` (SPEC §13).
+// tools/cmd/policy.mjs: `mb policy emit --host claude|codex [--team t] [--out dir]`.
 //
 // Inputs: policy/org.json (+ policy/teams/<t>.json with --team), the catalog (plugins that reach the
 // marketplaces) and marketplace.config.json `distribution` + `policyEmit`. Tier a only.

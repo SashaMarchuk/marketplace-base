@@ -1,4 +1,4 @@
-// Tests for U12: `mb github setup` (mocked gh responses), the pre-push hook, and the mb-*.yml
+// Tests for `mb github setup` (mocked gh responses), the pre-push hook, and the mb-*.yml
 // workflows (static checks + the embedded scripts run locally). No network, no real GitHub calls.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -424,6 +424,8 @@ test('mb-base-update: read-only update job with no secrets; publish runs no fetc
   const t = read('mb-base-update.yml');
   assert.match(t, /vars\.MB_BASE_UPDATE == 'true'/);
   const update = job(t, 'update');
+  // The gate runs only on the default branch (a manual run from another branch is a no-op).
+  assert.match(job(t, 'gate'), /if: .*\(github\.event_name == 'schedule' \|\| github\.ref_name == github\.event\.repository\.default_branch\)/);
   assert.match(update, /permissions:\n\s+contents: read/);
   assert.ok(!update.includes('secrets.'));
   assert.match(update, /--no-workflows/);
@@ -488,7 +490,7 @@ test('mb-evals: a missing API key skips that host with a notice and exit 0 (MB-E
   assert.match(fs.readFileSync(path.join(out, 'o'), 'utf8'), /run=false/);
 });
 
-test('mb-release: policy emit is skipped with a notice when marketplace.config.json has no distribution (O9)', POSIX_ONLY, () => {
+test('mb-release: policy emit is skipped with a notice when marketplace.config.json has no distribution', POSIX_ONLY, () => {
   const script = stepRun(read('mb-release.yml'), './mb policy emit (both hosts)');
   const dir = tmp('mb-rel-');
   fs.writeFileSync(path.join(dir, 'marketplace.config.json'), '{"name":"acme"}\n');

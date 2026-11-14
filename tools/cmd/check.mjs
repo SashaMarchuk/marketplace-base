@@ -1,4 +1,4 @@
-// tools/cmd/check.mjs: `mb check` (SPEC section 12). Runs every rule module tools/lib/rules/CHK-NN.mjs.
+// tools/cmd/check.mjs: `mb check`. Runs every rule module tools/lib/rules/CHK-NN.mjs.
 //
 // Rule module contract (also used by the docs/base/rules.md generator):
 //   export const id = 'CHK-01'; severity = 'error'|'warning'|'info'; title = '<rule text>';
@@ -229,9 +229,15 @@ export async function run(argv, ctx) {
   if (values.json) {
     ctx.stdout(JSON.stringify({ ok, results }) + '\n');
   } else {
-    for (const r of results) {
-      ctx.stdout(`${r.severity.toUpperCase().padEnd(7)} ${r.id} ${r.path}: ${r.message}\n        fix: ${r.fix}\n`);
+    // Stale generated files (CHK-10 with the plain `./mb gen` fix) collapse into ONE line printed first,
+    // so a real problem is not buried under one line per generated file. --json keeps all.
+    const stale = results.filter((r) => r.id === 'CHK-10' && r.fix === './mb gen');
+    const line = (r) => `${r.severity.toUpperCase().padEnd(7)} ${r.id} ${r.path}: ${r.message}\n        fix: ${r.fix}\n`;
+    if (stale.length) {
+      const shown = stale.slice(0, 3).map((r) => r.path).join(', ') + (stale.length > 3 ? ', ...' : '');
+      ctx.stdout(line({ ...stale[0], path: '.', message: `${stale.length} generated file(s) out of date (${shown})` }));
     }
+    for (const r of results) if (!stale.includes(r)) ctx.stdout(line(r));
     const n = (s) => results.filter((r) => r.severity === s).length;
     ctx.stdout(`mb check: ${n('error')} error(s), ${n('warning')} warning(s), ${n('info')} info${values.fast ? ' (--fast)' : ''}\n`);
   }

@@ -1,4 +1,4 @@
-// tools/lib/ownership.mjs: ownership classes (SPEC §2).
+// tools/lib/ownership.mjs: ownership classes.
 //
 // Glob dialect (implemented here, zero deps): a glob matches when it matches the WHOLE path;
 // `*` matches any run of characters except `/` (including the empty run); `**` as a whole segment

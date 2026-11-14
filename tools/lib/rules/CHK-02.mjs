@@ -1,10 +1,10 @@
-// CHK-02: marketplace.config.json matches its schema; config.layers valid (SPEC sections 5, 12).
+// CHK-02: marketplace.config.json matches its schema; config.layers valid.
 import { parse } from '../../kit/json.mjs';
 import { validate, loadSchema } from '../schema-lite.mjs';
 
 export const id = 'CHK-02';
 export const severity = 'error';
-export const title = '`marketplace.config.json` matches its schema; layers valid (section 5)';
+export const title = '`marketplace.config.json` matches its schema; layers valid';
 export const fix = 'see docs/base/config.md#layers';
 
 const FILE = 'marketplace.config.json';

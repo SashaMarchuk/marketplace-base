@@ -1,6 +1,6 @@
 // CHK-18: `claude plugin validate --strict` on the generated marketplace root and on each plugin,
-// with a throwaway CLAUDE_CONFIG_DIR (SPEC section 12). Skipped (info) when `claude` is not on PATH
-// locally; an error in CI (env CI set), where the host CLI is installed first (section 16).
+// with a throwaway CLAUDE_CONFIG_DIR. Skipped (info) when `claude` is not on PATH
+// locally; an error in CI (env CI set), where the host CLI is installed first.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

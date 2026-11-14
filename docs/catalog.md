@@ -31,7 +31,7 @@ Review a diff against a configurable, policy-lockable checklist. Read-only.
 
 | Field | Value |
 |---|---|
-| Version | `0.1.0+mb.8d359f31` |
+| Version | `0.1.1+mb.5798924e` |
 | Source | `./examples/plugins/code-review` |
 | Category | Productivity |
 | Keywords | `review`, `quality`, `checklist` |
@@ -94,7 +94,7 @@ Turn raw meeting notes into a structured template with configurable sections, la
 
 | Field | Value |
 |---|---|
-| Version | `0.1.0+mb.860e1958` |
+| Version | `0.1.1+mb.b780899e` |
 | Source | `./examples/plugins/meeting-notes` |
 | Category | Productivity |
 | Keywords | `meetings`, `notes`, `action-items` |

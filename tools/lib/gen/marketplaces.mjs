@@ -1,4 +1,4 @@
-// tools/lib/gen/marketplaces.mjs: root marketplace files (SPEC §4.4, §4.5).
+// tools/lib/gen/marketplaces.mjs: root marketplace files.
 // Plugins are the included ones, ordered by name; the version is never duplicated into entries.
 
 export const DEFAULT_CATEGORY = 'Productivity';

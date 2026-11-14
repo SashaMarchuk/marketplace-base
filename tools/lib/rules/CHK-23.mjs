@@ -1,4 +1,4 @@
-// CHK-23: G markers (SPEC section 2). Each expected marker pair appears exactly once, well-formed and
+// CHK-23: G markers. Each expected marker pair appears exactly once, well-formed and
 // in the file's style: README (catalog, install), USAGE (config-locations), AGENTS (agents),
 // .gitignore (gitignore, hash style), and the SKILL.md of every configurable skill (config).
 // Any marker problem in another SKILL.md is reported too.

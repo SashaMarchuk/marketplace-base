@@ -1,0 +1,1 @@
+{"blocked":false,"errors":[],"locked":[],"ok":true,"plugin":"p","provenance":{"/veto/mcp:x":"project","/veto/mcp:y":"user","/x":"skill-defaults"},"settings":{"veto":{"mcp:x":true,"mcp:y":true},"x":1},"tier":"a","warnings":[{"code":"FILE_SKIPPED","layer":"project-local"}]}

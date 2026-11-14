@@ -1,8 +1,8 @@
-// tools/lib/gen/vendor-kit.mjs: the per-skill `_mb/` tree (SPEC §4.6).
+// tools/lib/gen/vendor-kit.mjs: the per-skill `_mb/` tree.
 //
 // _mb/ = byte copies of EVERY file under tools/kit/ (resolve.mjs, json.mjs, MERGE-SPEC.md,
 //        FALLBACK.md, vectors/**, realmode/**, whatever is there; dot-files are skipped)
-//      + vectors.sha256     "<sha8>\n", the tier-b/c key (SPEC §8 step 2)
+//      + vectors.sha256     "<sha8>\n", the tier-b/c key
 //      + kit.json           pretty canonical {defaults, layers, marketplace, plugin, skill, specVersion:1}
 //      + policy/org.json    byte copy, if present
 //      + policy/teams/*.json byte copies
@@ -29,7 +29,7 @@ export function readKit(kitDir) {
 }
 
 /**
- * SPEC §8 step 2: sha256 over the concatenation, in sorted path order (paths relative to the kit dir,
+ * Saved-merger key: sha256 over the concatenation, in sorted path order (paths relative to the kit dir,
  * code-point order, MERGE-SPEC.md sorted in with the rest), of every vectors/<v>/{input.json,
  * expected.json, expected.exit} and MERGE-SPEC.md. Returns the first 8 hex chars.
  */

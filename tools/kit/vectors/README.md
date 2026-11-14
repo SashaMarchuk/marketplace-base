@@ -1,6 +1,6 @@
 # Conformance vectors
 
-Hand-authored oracle for `MERGE-SPEC.md` (SPEC 7.3 pseudocode). Never generated from an engine.
+Hand-authored oracle for `MERGE-SPEC.md` (the merge algorithm it describes). Never generated from an engine.
 Each `<NNN-slug>/` holds:
 - `input.json`: the INPUT object, with `request.tier = "a"`;
 - `expected.json`: exact bytes of compact canonical OUTPUT + `\n`;
@@ -12,7 +12,7 @@ Default fixture: marketplace `acme`, plugin `p`, skill `s`, the six default laye
 project-local `/r/.acme/config.local.json`.
 
 If an engine disagrees with a vector, file the diff; do not edit vectors. A reviewer rules against
-the SPEC 7.3 pseudocode, and the owner of the wrong side fixes it. Any behaviour change adds or edits
+the algorithm in MERGE-SPEC.md, and the owner of the wrong side fixes it. Any behaviour change adds or edits
 a vector first.
 
 ## Starred vectors (explicitly required; must pass in tiers a, b and c)

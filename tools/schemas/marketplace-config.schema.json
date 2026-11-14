@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "marketplace-config.schema.json",
-  "title": "marketplace.config.json (SPEC section 5)",
+  "title": "marketplace.config.json",
   "type": "object",
   "additionalProperties": false,
   "required": ["name", "displayName", "description", "owner"],

@@ -1,5 +1,5 @@
-// CHK-08: no symlinks inside a plugin dir, and no `../` path that escapes the plugin dir
-// (SPEC section 12). Escapes are found as `../` path tokens in text files, resolved against the
+// CHK-08: no symlinks inside a plugin dir, and no `../` path that escapes the plugin dir.
+// Escapes are found as `../` path tokens in text files, resolved against the
 // directory of the file that contains them. A JSON "$schema" line is exempt (editor hint only).
 import fs from 'node:fs';
 import path from 'node:path';

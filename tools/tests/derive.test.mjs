@@ -1,10 +1,10 @@
-// Tests for `mb init` and `mb base-update` (SPEC §14, U9). Everything runs in temp dirs:
+// Tests for `mb init` and `mb base-update`. Everything runs in temp dirs:
 //   - a fixture BASE is built from a copy of this repo's working tree (no .git) and published to a
 //     local bare repo with tags v0.1.0 (lightweight), v0.2.0 (annotated) and v0.3.0-rc.1;
 //   - derived repos are made from it by template copy (fresh history) or by clone;
 //   - every `mb` call is a child process of the DERIVED copy's own tools/mb.mjs, with a hermetic
 //     env (PATH = node + git, empty global git config), so the real repo is never touched.
-// v0.2.0 carries one scripted change per row of the SPEC §14.3 decision table (docs/base/r<row>-*).
+// v0.2.0 carries one scripted change per row of the base-update decision table (docs/base/r<row>-*).
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -22,7 +22,7 @@ import {
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const POSIX = process.platform !== 'win32';
 // tools/tests/** is base-owned and ships to derived repos; the fixture is built from a BASE tree,
-// so the fixture tests run in the base only (SPEC §14.4 gates the derive proof on isBase).
+// so the fixture tests run in the base only (the derive proof runs only in the base).
 const IN_DERIVED = fs.existsSync(path.join(REPO, '.mb-lock.json'));
 const ftest = (name, fn) => test(name, { skip: IN_DERIVED ? 'derived repo: the init/base-update fixture tests run in the base only' : false }, fn);
 
@@ -77,7 +77,7 @@ function cloneRepo(dir) {
 
 before(() => {
   if (IN_DERIVED) return;
-  TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'mb-u9-'));
+  TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'mb-derive-'));
   ENV = hermeticEnv(TMP);
   BARE = path.join(TMP, 'base.git');
   BARE_URL = pathToFileURL(BARE).href;
@@ -132,7 +132,8 @@ before(() => {
     const skill = fs.readdirSync(p(w, `examples/plugins/${ex}/skills`))[0];
     write(w, `examples/plugins/${ex}/skills/${skill}/references/v2-note.md`, `Added in v0.2.0 to ${ex}.\n`);
     const src = p(w, `examples/plugins/${ex}/plugin.src.json`);
-    fs.writeFileSync(src, fs.readFileSync(src, 'utf8').replace(/"version": "0\.1\.0"/, '"version": "0.1.1"'));
+    // A minor bump of whatever version the example has now (no hardcoded version to go stale).
+    fs.writeFileSync(src, fs.readFileSync(src, 'utf8').replace(/"version": "(\d+)\.(\d+)\.\d+"/, (_, a, b) => `"version": "${a}.${Number(b) + 1}.0"`));
   }
   // A migration that edits an S file (idempotent) and reports it.
   write(w, '.mb/migrations/0.2.0.mjs', [
@@ -174,7 +175,7 @@ after(() => {
 
 // ======================= pure helpers =======================
 
-test('decide: one result per §14.3 row', () => {
+test('decide: one result per decision-table row', () => {
   const base = { skipExample: false, workflowHeld: false, force: false };
   assert.equal(decide({ ...base, skipExample: true, N: 'n', T: true, L: 'l', C: 'x' }).row, 1);
   assert.deepEqual(decide({ ...base, workflowHeld: true, N: 'n', T: true, L: 'l', C: 'l' }), { row: 2, action: 'hold', conflict: false, lockHash: 'l' });
@@ -404,11 +405,16 @@ function treeState(dir) {
   return m;
 }
 
-ftest('--dry-run prints one row per path (rows 1-8) and writes nothing', () => {
+ftest('--dry-run lists only changes and conflicts; --verbose prints one row per path (rows 1-8); nothing is written', () => {
   const dir = conflictRepo();
   const lockBytes = fs.readFileSync(p(dir, '.mb-lock.json'));
   const state = treeState(dir);
-  const r = mb(dir, 'base-update', '--to', 'v0.2.0', '--dry-run');
+  const short = mb(dir, 'base-update', '--to', 'v0.2.0', '--dry-run');
+  assert.equal(short.code, 0, out(short));
+  assert.deepEqual([...new Set(planRows(short.stdout).values())].sort(), [4, 5, 7, 8]);
+  assert.match(short.stdout, /paths change or conflict \(--verbose lists all\)/);
+  assert.match(short.stdout, /3 conflict\(s\); nothing was written/);
+  const r = mb(dir, 'base-update', '--to', 'v0.2.0', '--dry-run', '--verbose');
   assert.equal(r.code, 0, out(r));
   const rows = planRows(r.stdout);
   const cm = fs.readdirSync(p(BARE_WORK(), 'examples/plugins/commit-message/skills'))[0];
@@ -427,7 +433,7 @@ ftest('--dry-run prints one row per path (rows 1-8) and writes nothing', () => {
   assert.equal(rows.get('tools/lib/obsolete-fixture.mjs'), 7);
   assert.equal(rows.get('docs/base/r8-edited-removed.md'), 8);
   assert.match(r.stdout, /3 conflict\(s\); nothing was written/);
-  const r2 = mb(dir, 'base-update', '--to', 'v0.2.0', '--dry-run', '--no-workflows');
+  const r2 = mb(dir, 'base-update', '--to', 'v0.2.0', '--dry-run', '--verbose', '--no-workflows');
   assert.equal(planRows(r2.stdout).get('.github/workflows/mb-fixture.yml'), 2);
   // Nothing written.
   assert.ok(fs.readFileSync(p(dir, '.mb-lock.json')).equals(lockBytes));
@@ -466,6 +472,16 @@ ftest('rows 3-8 applied: conflicts (row 5: edit and D-file collision; row 8) lef
   assert.match(again.stdout, /docs\/base\/r5-edited\.md {2}# row 5/);
   assert.match(again.stdout, /docs\/base\/r8-edited-removed\.md {2}# row 8/);
   assert.equal(read(dir, 'docs/base/r5-edited.md'), 'r5 mine\n');
+  // The printed recovery works as written: commit, then --to <tag> --force|--keep.
+  assert.match(r.stderr, /git add -A && git commit/);
+  assert.match(r.stderr, /\.\/mb base-update --to v0\.2\.0 --force/);
+  const kept = cloneRepo(dir);
+  const k = mb(kept, 'base-update', '--to', 'v0.2.0', '--keep');
+  assert.equal(k.code, 1, out(k)); // applied; CHK-16 red on purpose for the kept conflicts
+  const f = mb(dir, 'base-update', '--to', 'v0.2.0', '--force');
+  assert.equal(f.code, 0, out(f));
+  assert.equal(read(dir, 'docs/base/r5-edited.md'), 'r5 v2\n');
+  assert.ok(!ownRuleErrors(dir).some((x) => x.id === 'CHK-16'));
 });
 
 ftest('--keep keeps the OLD lock hash (CHK-16 stays red) and the next update still reports the conflict', () => {
@@ -659,11 +675,115 @@ ftest('offline init: an unreachable base.url records commit null and the lock st
   commitAll(dir, ENV, 'offline base url');
   const r = mb(dir, ...initArgs());
   assert.equal(lockOf(dir).base.commit, null, out(r));
-  assert.match(r.stdout, /commit unknown: offline/);
+  assert.match(r.stdout, /commit unknown: could not reach .*no-such-base\.git; no local tag v0\.1\.0/);
   assert.ok(!ownRuleErrors(dir).some((x) => x.id === 'CHK-16'));
 });
 
-// ======================= §14.4 proof =======================
+ftest('init: tag missing at base.url but present locally (a clone) records the local tag commit; a reachable URL without the tag says so', () => {
+  const dir = fresh('localtag');
+  gitc(TMP, 'clone', '-q', '--branch', 'v0.1.0', BARE_URL, dir);
+  gitc(dir, 'switch', '-q', '-c', 'main');
+  const cfg = parse(fs.readFileSync(p(dir, 'marketplace.config.json')));
+  write(dir, 'marketplace.config.json', canonicalPretty({ ...cfg, base: { url: pathToFileURL(path.join(TMP, 'no-such-base.git')).href } }));
+  commitAll(dir, ENV, 'unreachable base url');
+  let r = mb(dir, ...initArgs());
+  assert.equal(lockOf(dir).base.commit, SHA['v0.1.0'], out(r));
+  // Reachable, tag absent, no local tag: names the missing tag, not "offline".
+  const empty = path.join(TMP, `empty-${++n}.git`);
+  gitc(TMP, 'init', '-q', '--bare', empty);
+  const tpl = fresh('notag');
+  deriveTemplateCopy(BARE_URL, 'v0.1.0', tpl, ENV);
+  write(tpl, 'marketplace.config.json', canonicalPretty({ ...cfg, base: { url: pathToFileURL(empty).href } }));
+  commitAll(tpl, ENV, 'tagless base url');
+  r = mb(tpl, ...initArgs());
+  assert.equal(lockOf(tpl).base.commit, null, out(r));
+  assert.match(r.stdout, /commit unknown: tag v0\.1\.0 not found at .* or locally/);
+});
+
+ftest('init --force on an initialised repo never overwrites S files: writes missing seeds, patches includeExamples, drops deselected examples', () => {
+  const dir = derived('v0.1.0', ['--email', 'alice@example.com', '--repo', 'acme/acme-skills']);
+  write(dir, 'README.md', read(dir, 'README.md').replace(/\n/, '\n\nOur own intro.\n'));
+  write(dir, 'policy/org.json', '{\n  "$schema": "../tools/schemas/layer-file.schema.json"\n}\n');
+  fs.rmSync(p(dir, 'AGENTS.md'));
+  commitAll(dir, ENV, 'customise');
+  const readme = read(dir, 'README.md'), org = read(dir, 'policy/org.json'), cfg = read(dir, 'marketplace.config.json');
+  // No --examples: selection kept, config untouched, the missing seed comes back.
+  let r = mb(dir, ...initArgs(['--force']));
+  assert.match(r.stdout, /seeds written \(missing or includeExamples changed\): AGENTS\.md\n/, out(r));
+  assert.equal(read(dir, 'README.md'), readme);
+  assert.equal(read(dir, 'policy/org.json'), org);
+  assert.equal(read(dir, 'marketplace.config.json'), cfg);
+  assert.ok(has(dir, 'AGENTS.md'));
+  // --examples <subset>: only includeExamples changes; the other examples are deleted and unlocked.
+  r = mb(dir, ...initArgs(['--force', '--examples', 'code-review']));
+  assert.match(read(dir, 'README.md'), /Our own intro\./, out(r)); // gen refreshes only its marker blocks
+  assert.equal(read(dir, 'policy/org.json'), org);
+  const after = parse(fs.readFileSync(p(dir, 'marketplace.config.json')));
+  assert.deepEqual(after, { ...parse(Buffer.from(cfg)), includeExamples: ['code-review'] });
+  assert.deepEqual(fs.readdirSync(p(dir, 'examples/plugins')), ['code-review']);
+  assert.ok(!Object.keys(lockOf(dir).files).some((k) => k.startsWith('examples/') && !k.startsWith('examples/plugins/code-review/')));
+  assert.ok(!ownRuleErrors(dir).some((x) => x.id === 'CHK-16'));
+});
+
+ftest('dropping an example after init (edit includeExamples + rm) keeps CHK-16 green and base-update never restores it', () => {
+  const dir = derived();
+  const cfg = parse(fs.readFileSync(p(dir, 'marketplace.config.json')));
+  const all = fs.readdirSync(p(dir, 'examples/plugins')).sort();
+  write(dir, 'marketplace.config.json', canonicalPretty({ ...cfg, includeExamples: all.filter((x) => x !== 'meeting-notes') }));
+  fs.rmSync(p(dir, 'examples/plugins/meeting-notes'), { recursive: true });
+  let r = mb(dir, 'gen');
+  assert.equal(r.code, 0, out(r));
+  commitAll(dir, ENV, 'drop meeting-notes');
+  assert.ok(!ownRuleErrors(dir).some((x) => x.id === 'CHK-16'));
+  r = mb(dir, 'base-update', '--to', 'v0.2.0');
+  assert.equal(r.code, 0, out(r));
+  assert.ok(!has(dir, 'examples/plugins/meeting-notes'));
+  assert.ok(!Object.keys(lockOf(dir).files).some((k) => k.startsWith('examples/plugins/meeting-notes/')));
+  // The other documented route: adopt, delete, gen.
+  const ad = derived();
+  assert.equal(mb(ad, 'adopt', 'code-review').code, 0);
+  fs.rmSync(p(ad, 'plugins/code-review'), { recursive: true });
+  r = mb(ad, 'gen');
+  assert.equal(r.code, 0, out(r));
+  commitAll(ad, ENV, 'drop code-review');
+  assert.deepEqual(ownRuleErrors(ad), []);
+  r = mb(ad, 'base-update', '--to', 'v0.2.0');
+  assert.equal(r.code, 0, out(r));
+  assert.ok(!has(ad, 'examples/plugins/code-review') && !has(ad, 'plugins/code-review'));
+});
+
+ftest('base.url in marketplace.config.json wins over the lock copy (fork/mirror) and is recorded in the new lock', () => {
+  const dir = derived();
+  const mirror = path.join(TMP, `mirror-${++n}.git`);
+  gitc(TMP, 'clone', '-q', '--mirror', BARE, mirror);
+  const mirrorUrl = pathToFileURL(mirror).href;
+  const cfg = parse(fs.readFileSync(p(dir, 'marketplace.config.json')));
+  write(dir, 'marketplace.config.json', canonicalPretty({ ...cfg, base: { url: mirrorUrl } }));
+  commitAll(dir, ENV, 'point at a mirror');
+  const r = mb(dir, 'base-update', '--to', 'v0.2.0');
+  assert.equal(r.code, 0, out(r));
+  assert.match(r.stdout, /from marketplace\.config\.json; the lock had/);
+  assert.equal(lockOf(dir).base.url, mirrorUrl);
+});
+
+ftest('derive proof SKIP (no earlier stable tag) prints a ::warning:: under GitHub Actions and exits 0', async () => {
+  const dir = fresh('noprior');
+  deriveTemplateCopy(BARE_URL, 'v0.1.0', dir, ENV); // fresh history, no tags
+  const saved = process.env.GITHUB_ACTIONS;
+  process.env.GITHUB_ACTIONS = 'true';
+  let text = '';
+  try {
+    const code = await deriveProof({ root: dir, stdout: (t) => { text += t; }, stderr: (t) => { text += t; } });
+    assert.equal(code, 0, text);
+  } finally {
+    if (saved === undefined) delete process.env.GITHUB_ACTIONS;
+    else process.env.GITHUB_ACTIONS = saved;
+  }
+  assert.match(text, /SKIPPED/);
+  assert.match(text, /^::warning /m);
+});
+
+// ======================= derive proof =======================
 
 ftest('derive proof (mb test --derive) passes from N-1 and N-2 on the fixture base', async () => {
   const w = BARE_WORK();

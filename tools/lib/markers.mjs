@@ -1,4 +1,4 @@
-// tools/lib/markers.mjs: G-marker blocks (SPEC §2 "G-marker set").
+// tools/lib/markers.mjs: G-marker blocks.
 //
 // A marker is a WHOLE LINE (an optional trailing \r is tolerated):
 //   html style: <!-- mb:<id>:begin -->   ...   <!-- mb:<id>:end -->
@@ -100,7 +100,7 @@ export function replaceMarker(text, id, body) {
   return text.slice(0, p.bodyStart) + b + text.slice(p.bodyEnd);
 }
 
-/** Empty the body of every well-formed marker pair (the lock/drift hash rule, SPEC §2). */
+/** Empty the body of every well-formed marker pair (the lock/drift hash rule). */
 export function emptyMarkers(text) {
   const { pairs } = findMarkers(text);
   let out = '', last = 0;

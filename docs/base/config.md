@@ -10,6 +10,16 @@ How configurable skills get their settings: layers, file locations, merge rules,
 
 Add `config.defaults.json` next to `plugin.src.json` (or run `./mb new skill <p>/<s> "..." --config`). Every skill of that plugin then becomes configurable: `./mb gen` vendors the resolver kit into `skills/<s>/_mb/` and adds a generated "Configuration" block to each SKILL.md. All skills of a plugin share one settings namespace, one set of defaults and one optional `config.schema.json`.
 
+`config.defaults.json` is a **bare settings object**: the keys are the settings themselves, not wrapped in `{"settings": ...}` like a layer file. For example:
+
+```json
+{ "checks": { "tests": true, "security": true }, "maxItems": 10 }
+```
+
+`./mb new skill ... --config` creates it as `{}`. Fill in a default for every setting the skill reads.
+
+Footprint: the vendored `_mb/` kit is about 180 small files and about 100 KB per configurable skill (most of it is the conformance vectors that the no-runtime fallback needs at run time). Generated, so you never edit it.
+
 ## Layers
 
 Settings merge from low to high priority, in the order given by `config.layers` in `marketplace.config.json`:
@@ -51,13 +61,17 @@ Every layer file has the same shape:
 | `team` | project, user (must be kebab-case) | ignored with warning `KEY_IGNORED` |
 | `merge` | user | ignored with warning `KEY_IGNORED` |
 
-Strict text rules for every config file: integers only (no `1.5`, `1.0` or `1e3`), keys match `^[A-Za-z0-9_-]{1,64}$`, no duplicate keys, no `__proto__`/`constructor`/`prototype`, no BOM, valid UTF-8. Secrets never appear as text: write `"${env:NAME}"`, which is passed through unchanged.
+`merge` is also a reserved top-level key inside settings: the org opt-out `enforced.settings.merge.allowGenerated` shows up in every plugin's resolved settings as the locked path `/merge/allowGenerated`. Do not name a plugin setting `merge` (`./mb check` warns, CHK-11).
+
+Strict text rules for every config file: integers only (no `1.5`, `1.0` or `1e3`), keys match `^[A-Za-z0-9_:-]{1,64}$` (so a tool identity such as `mcp:search` works; spaces and `.` do not), no duplicate keys, no `__proto__`/`constructor`/`prototype`, no BOM, valid UTF-8. Secrets never appear as text: write `"${env:NAME}"`, which is passed through unchanged.
 
 ## Merge rules
 
 1. **Cascade.** For each layer, low to high: apply `settings`, then `plugins.<p>.settings`, as an RFC 7386 merge patch. Objects merge key by key; arrays and scalars replace whole; `null` deletes a key. `plugins.<p>.enabled` set by the highest layer wins.
 2. **Enforced.** `enforced` values from team, then org, overwrite the result and **lock** those paths. A personal value at a locked path is overridden (`LOCKED_OVERRIDE` warning). If team and org lock the same path with different values, org wins (`ENFORCED_CONFLICT`; `./mb check` also reports it in CI).
 3. **Access.** `deny` is a union: a match in any layer blocks the plugin. `allow` is an intersection: every layer that declares `allow` must match the plugin. `*` matches any run of characters. A blocked or disabled plugin makes the resolver exit 4.
+
+There is no per-key merge strategy. To get a list that higher layers add to (a union) or an object that a higher layer replaces whole, model it as shown in [migrating.md](migrating.md#config-merge-recipes).
 
 Failure handling:
 
@@ -72,7 +86,7 @@ Failure handling:
 
 A missing or broken `_mb/kit.json` is exit 3 `KIT_INVALID`. A bad command line is exit 2 and still prints the JSON line, with `errors: [{"code":"USAGE"}]`.
 
-The exact algorithm is [tools/kit/MERGE-SPEC.md](../../tools/kit/MERGE-SPEC.md); the 57 conformance vectors in `tools/kit/vectors/` are the judge.
+The exact algorithm is [tools/kit/MERGE-SPEC.md](../../tools/kit/MERGE-SPEC.md); the conformance vectors in `tools/kit/vectors/` are the judge.
 
 ## Resolver output
 
@@ -82,6 +96,8 @@ The exact algorithm is [tools/kit/MERGE-SPEC.md](../../tools/kit/MERGE-SPEC.md);
 {"blocked":false,"errors":[],"locked":["/checks/security"],"ok":true,"plugin":"code-review","provenance":{"/checks/security":"org","/maxItems":"user"},"settings":{"checks":{"security":true},"maxItems":5},"tier":"a","warnings":[{"code":"LOCKED_OVERRIDE","layer":"user","path":"/checks/security"}]}
 ```
 
+**`blocked: true` overrides `ok`.** A blocked plugin still prints `"ok": true` and the merged `settings` (for diagnosis), with exit 4. Exit 4 is authoritative: a program that reads the JSON must check `blocked` (or the exit code) before using `settings`.
+
 | Exit | Meaning | The skill |
 |---|---|---|
 | 0 | resolved | uses `settings`, never changes a `locked` path |
@@ -89,21 +105,23 @@ The exact algorithm is [tools/kit/MERGE-SPEC.md](../../tools/kit/MERGE-SPEC.md);
 | 3 | config or policy error | stops and shows `errors` |
 | 4 | blocked or disabled | says it is blocked (and by which layer) and stops |
 | 5 | unsupported spec version | stops and reports |
+| 9 | `RUNTIME_UNSUPPORTED`: node older than 20 | follows the fallback tiers below |
 | other, or no JSON | the runtime could not run it | follows the fallback tiers below |
 
-Inspect the result from the repo with `./mb config resolve <p> [--skill s] [--cwd dir]`, which prints a table of pointer, value, layer and locked.
+Inspect the result from the repo with `./mb config resolve <p> [--skill s] [--cwd dir]`, which prints a table of pointer, value, layer and locked. `--cwd` selects the project; the user layer follows `XDG_CONFIG_HOME` as usual, so `XDG_CONFIG_HOME=/tmp/u ./mb config resolve <p>` previews another user file.
 
 The generated SKILL.md block that tells the agent all this looks like this (indented here):
 
     <!-- mb:config:begin -->
     ## Configuration (do this first)
     `<skill-dir>` means the absolute directory that contains this SKILL.md (not the working directory).
-    1. Run `node "<skill-dir>/_mb/resolve.mjs" --plugin <p>` (node 20 or later). ...
+    1. Your first tool call must be this command, alone; make no other tool call until it returns:
+       `node "<skill-dir>/_mb/resolve.mjs" --plugin <p>` (node 20 or later). ...
     <!-- mb:config:end -->
 
 ## Writing settings
 
-The skill saves a stated preference with:
+People can write a setting from a clone of the marketplace with `./mb config set <p> --layer user|project|project-local [--shared] <json-pointer> '<json>' [--cwd dir]`, which runs the same command as the skill (below) and prints the result. The skill saves a stated preference with:
 
 ```sh
 node "<skill-dir>/_mb/resolve.mjs" set   --plugin <p> --layer user|project|project-local [--shared] <json-pointer> '<json>'
@@ -114,8 +132,9 @@ node "<skill-dir>/_mb/resolve.mjs" unset --plugin <p> --layer user|project|proje
 - It is checked against the strict text rules and, if present, the plugin's `config.schema.json`.
 - A path that overlaps a locked path is refused (`LOCKED`, exit 3) and nothing is written.
 - The write is atomic and keeps unknown keys. An unparsable existing file is left untouched (exit 3).
-- If the file cannot be written (`WRITE_DENIED`, for example inside the Codex sandbox), use `--layer project-local` or approve the write.
-- `project-local` files are kept out of git by the seeded `.gitignore` (`.<mkt>/config.local.json`); `set` does not check this.
+- If the file cannot be written (`WRITE_DENIED`, for example the user file inside the Codex sandbox), the skill asks you before it writes `--layer project-local` instead, or asks you to approve the write.
+- A `project-local` write also makes sure `<root>/.<mkt>/.gitignore` lists `config.local.json` (it creates or extends that file; it never runs git), so the file stays out of git in any repo. The derived marketplace's own `.gitignore` lists it too.
+- `project-local` is per checkout: another clone or worktree of the same repo has its own `config.local.json`.
 - Other exit-3 codes of `set`/`unset`: `SCHEMA_INVALID` (value violates `config.schema.json`), `FILE_INVALID` (target file unparsable; never rewritten).
 
 ## Schema

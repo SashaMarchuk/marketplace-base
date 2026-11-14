@@ -1,10 +1,10 @@
 // Tests for the generator: tools/cmd/gen.mjs, tools/lib/gen/*.mjs, tools/lib/rules/CHK-10.mjs.
 //
 // Fixture: tools/tests/fixtures/gen/repo (a self-contained mini repo with a STUB kit and stub rules,
-// so U1/U3 kit edits never break the goldens). Goldens: tools/tests/fixtures/gen/expected/tree.
+// so kit edits never break the goldens). Goldens: tools/tests/fixtures/gen/expected/tree.
 // Marker-bearing outputs are stored with their marker bodies EMPTIED, and each body is stored
 // separately as `<path>.<id>.body`: the lock hash rule empties whole-line marker bodies in every file,
-// so a golden with filled bodies would hide golden changes from base-update (ORCH O1).
+// so a golden with filled bodies would hide golden changes from base-update.
 // Regenerate goldens after an intended change: MB_UPDATE_GOLDEN=1 node --test tools/tests/gen.test.mjs
 // Host checks (claude validate --strict, codex marketplace/plugin add) run only with MB_HOST_TESTS=1.
 
@@ -78,7 +78,7 @@ function goldenView(root, rels) {
   return view;
 }
 
-test('gen output matches the golden files (SPEC 4.1-4.7)', async () => {
+test('gen output matches the golden files', async () => {
   const root = tmpRepo();
   const r = await mb(root, ['gen']);
   assert.equal(r.code, 0, r.err);
@@ -184,7 +184,7 @@ test('plugin-level config is vendored into every skill of the plugin', async () 
   assert.equal(fs.existsSync(fromPosix(root, 'plugins/beta/skills/beta/_mb')), false);
 });
 
-test('a top-level $schema in config.defaults.json is not vendored as a setting (O13)', async () => {
+test('a top-level $schema in config.defaults.json is not vendored as a setting', async () => {
   const root = tmpRepo();
   const rel = 'plugins/alpha/config.defaults.json';
   const defaults = readJ(root, rel);
@@ -322,4 +322,17 @@ test('codex marketplace add + plugin add succeed in a temp CODEX_HOME', { skip: 
     assert.equal(r.status, 0, `${p}: ${r.stdout}${r.stderr}`);
   }
   assert.ok(fs.existsSync(path.join(home, 'plugins', 'cache', 'acme', 'alpha', version(root, 'plugins/alpha'), 'skills', 'alpha-one', '_mb', 'kit.json')));
+});
+
+test('gen prints counts by default, per-file lines with --verbose, and names plugin dirs it skips', async () => {
+  const root = tmpRepo();
+  fs.mkdirSync(fromPosix(root, 'plugins/bare/skills/x'), { recursive: true });
+  const r = await mb(root, ['gen']);
+  assert.equal(r.code, 0, r.err);
+  assert.doesNotMatch(r.out, /^wrote /m);
+  assert.match(r.out, /^gen: \d+ written, 0 removed \(--verbose lists them\)\n$/);
+  assert.match(r.err, /skipped plugins\/bare: no plugin\.src\.json/);
+  fs.rmSync(fromPosix(root, 'docs/catalog.md'));
+  const v = await mb(root, ['gen', '--verbose']);
+  assert.match(v.out, /^wrote {3}docs\/catalog\.md$/m);
 });

@@ -1,4 +1,4 @@
-// Tests for tools/lib/ownership.mjs and the literal .mb/ownership.json (SPEC §2).
+// Tests for tools/lib/ownership.mjs and the literal .mb/ownership.json.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -11,7 +11,7 @@ import {
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
-// The SPEC §2 literal, byte for byte (LF line endings, trailing newline).
+// The expected literal, byte for byte (LF line endings, trailing newline).
 const OWNERSHIP_LITERAL = `{
   "G": ["plugins/*/.claude-plugin/plugin.json", "plugins/*/.codex-plugin/plugin.json", "plugins/*/skills/*/_mb/**",
         "examples/plugins/*/.claude-plugin/plugin.json", "examples/plugins/*/.codex-plugin/plugin.json",
@@ -28,7 +28,7 @@ const OWNERSHIP_LITERAL = `{
 }
 `;
 
-test('.mb/ownership.json is byte-for-byte the SPEC §2 literal', () => {
+test('.mb/ownership.json is byte-for-byte the expected literal', () => {
   assert.equal(fs.readFileSync(path.join(ROOT, '.mb', 'ownership.json'), 'utf8'), OWNERSHIP_LITERAL);
 });
 
@@ -62,7 +62,7 @@ test('paths are normalised: backslashes and leading ./', () => {
   assert.equal(classify('./README.md', o), 'S');
 });
 
-test('classifies every SPEC §2 sample path', () => {
+test('classifies every sample path', () => {
   const o = loadOwnership(ROOT);
   const cases = {
     'LICENSE': 'S', 'README.md': 'S', 'USAGE.md': 'S', 'AGENTS.md': 'S', 'CLAUDE.md': 'B',

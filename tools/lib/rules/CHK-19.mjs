@@ -1,6 +1,7 @@
 // CHK-19: generated Codex files match tools/schemas/codex-{plugin,marketplace}.schema.json
-// (SPEC section 12; schemas pinned to the verified host versions, owned by the generator unit).
-// A missing schema is reported as info (not yet pinned); a missing generated file as an error.
+// (schemas pinned to the verified host versions, owned by the generator unit).
+// A missing schema is reported as info (not yet pinned); a missing generated file as an error,
+// except for a plugin with no readable plugin.src.json (CHK-03's error; `mb gen` would not help).
 import { parse } from '../../kit/json.mjs';
 import { validate } from '../schema-lite.mjs';
 import { exists, fromPosix, readBytes } from '../fsx.mjs';
@@ -38,6 +39,7 @@ export function run(rctx) {
   if (rctx.allPlugins.length === 0) return out; // nothing to generate
   check(loadOptional(rctx, 'codex-marketplace'), 'codex-marketplace', '.agents/plugins/marketplace.json');
   const pluginSchema = loadOptional(rctx, 'codex-plugin');
-  for (const p of rctx.plugins) check(pluginSchema, 'codex-plugin', `${p.dir}/.codex-plugin/plugin.json`);
+  // A plugin without a readable plugin.src.json is reported by CHK-03 (gen cannot fix it), so skip it here.
+  for (const p of rctx.plugins) if (p.src) check(pluginSchema, 'codex-plugin', `${p.dir}/.codex-plugin/plugin.json`);
   return out;
 }

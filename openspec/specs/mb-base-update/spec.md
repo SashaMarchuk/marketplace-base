@@ -6,7 +6,7 @@ Defines how a derived marketplace is created from the base and how it later pull
 ## Requirements
 
 ### Requirement: MB-UPD-001 Init
-`mb init` SHALL render the seed files, record the base tag and commit in `.mb-lock.json`, delete examples not selected by `--examples`, run `gen` and `check`, and SHALL refuse the name `marketplace-base` or an existing lock without `--force`.
+`mb init` SHALL render the seed files, record the base tag and commit in `.mb-lock.json`, delete examples not selected by `--examples`, run `gen` and `check`, and SHALL refuse the name `marketplace-base` or an existing lock without `--force`; with an existing lock, `--force` SHALL write only missing seed files and the example selection, never overwriting an existing seed file.
 
 #### Scenario: Init from a template copy
 - **WHEN** `./mb init --name acme-skills --display "Acme Skills" --owner Alice` runs in a fresh copy

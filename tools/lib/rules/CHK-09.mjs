@@ -1,5 +1,5 @@
-// CHK-09: host-specific components in a plugin (SPEC section 12). Warning; error in examples,
-// which must stay skills-only (section 17).
+// CHK-09: host-specific components in a plugin. Warning; error in examples,
+// which must stay skills-only.
 import { exists, fromPosix } from '../fsx.mjs';
 
 export const id = 'CHK-09';

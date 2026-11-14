@@ -1,8 +1,8 @@
-// tools/lib/gen/version-stamp.mjs: generated plugin version (SPEC §4.3).
+// tools/lib/gen/version-stamp.mjs: generated plugin version.
 //
 // version = src.version, plus "+mb.<sha8>" for configurable plugins. sha8 = the first 8 hex chars of
 // sha256 over the plugin's vendored _mb trees (every configurable skill), computed from the IN-MEMORY
-// trees (never from disk, so gen is idempotent). Encoding [spec-decided, U4]: files sorted by their
+// trees (never from disk, so gen is idempotent). Encoding : files sorted by their
 // POSIX path relative to the plugin dir ("skills/<s>/_mb/<rel>", code-point order); each file
 // contributes  utf8(path) 0x00 utf8(decimal byte length) 0x00 bytes  so no two trees collide.
 

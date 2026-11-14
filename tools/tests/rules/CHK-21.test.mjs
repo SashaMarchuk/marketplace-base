@@ -21,7 +21,7 @@ test('CHK-21 fails: requirement without scenario, missing ID, duplicate ID, miss
   assert.match(msgs, /duplicate requirement ID MB-DEMO-001/);
 });
 
-test('CHK-21 fails when a base spec cites an example file; a derived spec may (O18)', async () => {
+test('CHK-21 fails when a base spec cites an example file; a derived spec may', async () => {
   const cite = '# s\n\n### Requirement: MB-DEMO-001 X\n#### Scenario: s (test examples/plugins/a/evals/c/prompt.md)\n';
   const files = { 'examples/plugins/a/evals/c/prompt.md': 'x\n' };
   const base = errors(await runRule('CHK-21', makeRepo({ ...files, 'openspec/specs/mb-demo/spec.md': cite })));

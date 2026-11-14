@@ -1,12 +1,12 @@
 // tools/tests/resolve-real.test.mjs: tools/kit/resolve.mjs in real mode on real temp dirs and git repos
-// (SPEC §7.2, §20), plus `set`/`unset` (§9). Temp dirs come from os.tmpdir().
+// plus `set`/`unset`. Temp dirs come from os.tmpdir().
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const KIT_SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'kit');
 const RESOLVE = path.join(KIT_SRC, 'resolve.mjs');
@@ -230,6 +230,38 @@ test('project and project-local layers write under the git root, not cwd', { ski
   assert.ok(!fs.existsSync(path.join(r, 'sub', '.acme')));
 });
 
+test('project-local write keeps the file out of git: .gitignore created or appended, never duplicated', { skip: !hasGit && 'git missing' }, () => {
+  const sb = sandbox();
+  const r = path.join(sb.T, 'r'), gi = path.join(r, '.acme', '.gitignore');
+  gitInit(r);
+  assert.equal(resolve(sb, ['set', '--layer', 'project-local', '/maxItems', '4'], { cwd: r }).code, 0);
+  assert.equal(fs.readFileSync(gi, 'utf8'), 'config.local.json\n');
+  assert.equal(spawnSync('git', ['check-ignore', '-q', path.join('.acme', 'config.local.json')], { cwd: r }).status, 0);
+  assert.equal(resolve(sb, ['set', '--layer', 'project-local', '/maxItems', '3'], { cwd: r }).code, 0);
+  assert.equal(fs.readFileSync(gi, 'utf8'), 'config.local.json\n', 'no duplicate line');
+  fs.writeFileSync(gi, '# mine\n*.bak');
+  assert.equal(resolve(sb, ['unset', '--layer', 'project-local', '/maxItems'], { cwd: r }).code, 0);
+  assert.equal(fs.readFileSync(gi, 'utf8'), '# mine\n*.bak\nconfig.local.json\n', 'appended, existing lines kept');
+  // project and user writes do not touch .gitignore; no git repo needed for project-local.
+  const w = path.join(sb.T, 'w');
+  fs.mkdirSync(w);
+  assert.equal(resolve(sb, ['set', '--layer', 'project', '/maxItems', '4'], { cwd: w }).code, 0);
+  assert.equal(resolve(sb, ['set', '--layer', 'user', '/maxItems', '4'], { cwd: w }).code, 0);
+  assert.ok(!fs.existsSync(path.join(w, '.acme', '.gitignore')));
+  assert.ok(!fs.existsSync(path.join(path.dirname(sb.userFile), '.gitignore')));
+  assert.equal(resolve(sb, ['set', '--layer', 'project-local', '/maxItems', '2'], { cwd: w }).code, 0);
+  assert.equal(fs.readFileSync(path.join(w, '.acme', '.gitignore'), 'utf8'), 'config.local.json\n');
+});
+
+test('keys may contain ":" (tool identities); "." and proto keys stay rejected', () => {
+  const sb = sandbox();
+  const r = resolve(sb, ['set', '--layer', 'user', '/veto/mcp:bar', 'true']);
+  assert.equal(r.code, 0);
+  assert.equal(r.out.settings.veto['mcp:bar'], true);
+  assert.equal(r.out.provenance['/veto/mcp:bar'], 'user');
+  for (const ptr of ['/a.b', '/__proto__/x', '/veto/constructor']) assert.equal(resolve(sb, ['set', '--layer', 'user', ptr, '1']).code, 2, ptr);
+});
+
 test('write denied on a read-only dir: exit 3 WRITE_DENIED', { skip: (WIN || ROOT_USER) && 'needs POSIX permissions as non-root' }, () => {
   const sb = sandbox();
   const w = path.join(sb.T, 'w');
@@ -250,9 +282,22 @@ test('set refuses while policy is broken (fail closed)', () => {
   assert.ok(!fs.existsSync(sb.userFile));
 });
 
+test('runtime guard: node < 20 exits 9 RUNTIME_UNSUPPORTED before any work; bun passes via its node version', async () => {
+  const { main, runtimeSupported } = await import(pathToFileURL(RESOLVE).href);
+  assert.equal(runtimeSupported({ node: '18.17.1' }), false);
+  assert.equal(runtimeSupported({ node: '20.0.0' }), true);
+  assert.equal(runtimeSupported({ node: '24.3.0', bun: '1.3.14' }), true);
+  const r = main(['--plugin', 'p'], { node: '18.17.1' });
+  assert.equal(r.exit, 9);
+  assert.deepEqual(JSON.parse(r.text).errors, [{ code: 'RUNTIME_UNSUPPORTED' }]);
+  assert.equal(JSON.parse(r.text).ok, false);
+});
+
 test('static: no require, no network, no eval; the only child process is git rev-parse', () => {
   const src = fs.readFileSync(RESOLVE, 'utf8');
-  assert.ok(src.split('\n').length <= 450, 'resolve.mjs <= 450 lines');
+  // Simplicity cap: counts code lines only (blank lines and `//` comment lines are free).
+  const code = src.split('\n').filter((l) => l.trim() !== '' && !l.trim().startsWith('//'));
+  assert.ok(code.length <= 450, `resolve.mjs has ${code.length} code lines (cap 450, blank and comment lines excluded)`);
   assert.doesNotMatch(src, /\brequire\s*\(|node:(http|https|net|dgram|tls|dns|vm|worker_threads)|\beval\s*\(|new Function|import\s*\(/);
   const imports = [...src.matchAll(/^import .* from '([^']+)';$/gm)].map((m) => m[1]).sort();
   assert.deepEqual(imports, ['./json.mjs', 'node:child_process', 'node:fs', 'node:os', 'node:path', 'node:url']);

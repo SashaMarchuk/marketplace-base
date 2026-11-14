@@ -147,7 +147,7 @@ Secret values SHALL appear only as `${env:NAME}` references, which the resolver 
 - **THEN** the output holds the same string unchanged (vector 045-env-ref-passthrough)
 
 ### Requirement: MB-CFG-016 Config writes
-`resolve.mjs set` and `unset` SHALL write only the user, project or project-local layer, atomically, preserving unknown keys, and SHALL refuse with exit 3 LOCKED when the target overlaps a locked pointer or WRITE_DENIED when the file cannot be written.
+`resolve.mjs set` and `unset` SHALL write only the user, project or project-local layer, atomically, preserving unknown keys, and SHALL refuse with exit 3 LOCKED when the target overlaps a locked pointer or WRITE_DENIED when the file cannot be written; a project-local write SHALL make sure `<root>/.<mkt>/.gitignore` lists `config.local.json`, without running git.
 
 #### Scenario: Locked target is refused
 - **WHEN** `set` targets a pointer that org enforces

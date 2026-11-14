@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import path from 'node:path';
 import { makeRepo, runRule, errors, write } from './_fixture.mjs';
 import { hashFile } from '../../lib/hash.mjs';
@@ -32,4 +33,31 @@ test('CHK-16 fails: edited B file, deleted B file, B path with no lock entry', a
   const r = errors(await runRule('CHK-16', root));
   assert.deepEqual(r.map((x) => x.path), ['CONTRIBUTING.md', 'SECURITY.md', 'tools/x.mjs']);
   assert.equal(r[0].fix, 'revert, or upstream a PR; `base-update --force` to reset');
+});
+
+test('CHK-16: an example left out of includeExamples, or adopted, is not "missing"; an included one still is', async () => {
+  const ex = 'examples/plugins/demo-ex/README.md';
+  const root = derived({ [ex]: '# demo\n' });
+  const lockPath = path.join(root, '.mb-lock.json');
+  const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+  lock.files[ex] = hashFile(path.join(root, ex));
+  write(root, '.mb-lock.json', JSON.stringify(lock, null, 2) + '\n');
+  fs.rmSync(path.join(root, 'examples'), { recursive: true });
+  // Included (default true) and deleted: an error.
+  assert.deepEqual(errors(await runRule('CHK-16', root)).map((x) => x.path), [ex]);
+  // Dropped from includeExamples: clean.
+  const cfgPath = path.join(root, 'marketplace.config.json');
+  const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+  write(root, 'marketplace.config.json', JSON.stringify({ ...cfg, includeExamples: ['other'] }, null, 2) + '\n');
+  assert.deepEqual(errors(await runRule('CHK-16', root)), []);
+  // Excluded example still on disk with no lock entry: clean (the "no lock entry" direction).
+  write(root, ex, '# demo\n');
+  const { [ex]: _gone, ...rest } = lock.files;
+  write(root, '.mb-lock.json', JSON.stringify({ ...lock, files: rest }, null, 2) + '\n');
+  assert.deepEqual(errors(await runRule('CHK-16', root)), []);
+  fs.rmSync(path.join(root, 'examples'), { recursive: true });
+  // Adopted (still included): clean.
+  write(root, 'marketplace.config.json', JSON.stringify(cfg, null, 2) + '\n');
+  write(root, '.mb-lock.json', JSON.stringify({ ...lock, adopted: ['demo-ex'] }, null, 2) + '\n');
+  assert.deepEqual(errors(await runRule('CHK-16', root)), []);
 });

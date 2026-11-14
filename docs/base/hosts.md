@@ -6,7 +6,7 @@ What marketplace-base relies on in each host, and how sure we are. Tags:
 - **[D]** taken from the host's documentation, not run;
 - **[U]** unverified; marked in the tool output where it matters.
 
-Re-check these when a host changes. A spike that fails switches to the fallback named in the table; it never silently changes behaviour.
+Re-check these when a host changes. If a fact stops holding, `mb` switches to the fallback named in the table; it never silently changes behaviour.
 
 ## Claude Code (verified 2026-11-14, Claude Code 2.1.325)
 
@@ -14,6 +14,7 @@ Re-check these when a host changes. A spike that fails switches to the fallback 
 |---|---|
 | `claude -p --plugin-dir <dir>` loads a plugin and fires its skill; `claude plugin validate` accepts a repo with root `.claude-plugin/marketplace.json` and `<plugin>/.claude-plugin/plugin.json` | [V] |
 | `claude plugin marketplace add <owner>/<repo>` then `claude plugin install <p>@<mkt>` installs from GitHub | [D] |
+| `claude plugin marketplace add <local dir>` installs from a clone; plugins of a local-directory marketplace are read in place from that directory, so editing or deleting the clone changes the install | [V] |
 | The generated manifest and marketplace shapes, including a `+mb.<hash>` version suffix, pass `claude plugin validate --strict` (it needs a marketplace description); no login needed with an empty `CLAUDE_CONFIG_DIR` | [V] |
 | The model sees the skill's absolute directory, so `<skill-dir>/...` paths and `sh <skill-dir>/scripts/x` work without `${CLAUDE_PLUGIN_ROOT}` | [V] |
 | Plugins are copied to a per-version cache: only files inside the plugin directory exist at runtime | [V] |
@@ -34,7 +35,7 @@ Re-check these when a host changes. A spike that fails switches to the fallback 
 | The model sees the skill's absolute path; Codex reads SKILL.md with a shell command | [V] |
 | `codex exec --json` emits JSONL events (`thread.started`, `turn.started`, `item.started`/`item.completed` with `agent_message` or `command_execution`, `turn.completed`); the first stdout line may be non-JSON | [V] |
 | `CODEX_HOME=<temp dir>` isolates installs from the real `~/.codex` | [V] |
-| In `-s workspace-write`, reading `~/.config/<mkt>/` works; writing `~/.config` or `~/.local/share` is denied; writing `$TMPDIR` works | [V] |
+| In `-s workspace-write`, reading `~/.config/<mkt>/` works; writes outside the workspace and the temp dirs (`/tmp`, `$TMPDIR`) are denied, so writing `~/.config` or `~/.local/share` fails | [V] |
 | User skills folder is `~/.agents/skills` | [D] |
 | `requirements.toml` `[marketplaces]` with `restrict_to_allowed_sources` and `allowed_sources` restricts plugin sources | [U] emitted with an UNVERIFIED header |
 

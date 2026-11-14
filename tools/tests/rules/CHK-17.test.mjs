@@ -10,10 +10,14 @@ test('CHK-17 passes: local workflow outside mb-*, the local denylist is allowed'
 });
 
 test('CHK-17 warns: D file under .mb/ in the base; unlocked file under tools/ in a derived repo', async () => {
-  const root = makeRepo({ '.mb/notes.json': '{}', 'tools/mine.mjs': 'x\n' });
+  const root = makeRepo({ '.mb/notes.json': '{}', 'tools/mine.mjs': 'x\n', 'docs/base/faq.md': 'x\n', '.github/workflows/mb-mine.yml': 'on: push\n' });
   const lock = { adopted: [], base: { url: 'u', tag: 'v0.1.0', commit: null }, files: { '.mb/ownership.json': hashFile(path.join(root, '.mb/ownership.json')) }, lockVersion: 1 };
   write(root, '.mb-lock.json', JSON.stringify(lock));
   const r = warnings(await runRule('CHK-17', root));
-  assert.deepEqual(r.map((x) => x.path), ['.mb/notes.json', 'tools/mine.mjs']);
-  assert.equal(r[0].fix, 'put local CI in .github/workflows/<name>.yml');
+  assert.deepEqual(r.map((x) => x.path), ['.github/workflows/mb-mine.yml', '.mb/notes.json', 'docs/base/faq.md', 'tools/mine.mjs']);
+  // Each reserved name gets its own hint.
+  assert.match(r[0].fix, /\.github\/workflows\/<name>\.yml/);
+  assert.match(r[1].fix, /out of \.mb\//);
+  assert.match(r[2].fix, /docs\/<name>/);
+  assert.match(r[3].fix, /tools\/ belongs to the base/);
 });

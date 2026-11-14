@@ -1,4 +1,4 @@
-# mb-check (base-owned; SPEC section 16). PR and default-branch checks. No secrets, read-only token.
+# mb-check (base-owned). PR and default-branch checks. No secrets, read-only token.
 # The ONLY required status check is the aggregate job named exactly `mb-check`, so the required check
 # name never depends on the OS matrix. Add your own CI as .github/workflows/<name>.yml (not mb-*).
 name: mb-check
@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  # Pinned host CLI for CHK-18 (claude plugin validate --strict; no auth needed) and OpenSpec (O7).
+  # Pinned host CLI for CHK-18 (claude plugin validate --strict; no auth needed) and OpenSpec.
   CLAUDE_CODE_VERSION: 2.1.325
   OPENSPEC_VERSION: 2.0.0
 

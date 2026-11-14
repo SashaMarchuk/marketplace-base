@@ -1,7 +1,7 @@
 {
   "$schema": "../../../tools/schemas/plugin-src.schema.json",
   "name": "code-review",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Review a diff against a configurable, policy-lockable checklist. Read-only.",
   "keywords": ["review", "quality", "checklist"],
   "category": "Productivity",

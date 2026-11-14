@@ -1,4 +1,7 @@
-// CHK-07: no host variables or absolute home paths under a plugin's skills/ (SPEC sections 10, 12).
+// CHK-07: no host variables or absolute home paths under a plugin's skills/.
+// Whole-line comments in script files (SCRIPT_EXT; `//`, `#` but not `#!`, `/*`, `*`)
+// are skipped: a comment describing a path form is not a path the code uses. Code lines and every
+// line of any other file (markdown prose, spans, fences; .txt) are still checked, because an agent follows them.
 import { walk } from '../fsx.mjs';
 
 export const id = 'CHK-07';
@@ -16,6 +19,9 @@ const PATTERNS = [
   ['absolute home path C:\\Users\\', /[A-Za-z]:(?:\\\\|\\)Users(?:\\\\|\\)/i],
 ];
 
+const SCRIPT_EXT = /\.(?:mjs|cjs|js|ts|sh|bash|py|rb|ps1)$/i;
+const COMMENT_LINE = /^\s*(?:\/\/|\/\*|\*|#(?!!))/;
+
 export function run(rctx) {
   const out = [];
   for (const p of rctx.plugins) {
@@ -25,7 +31,9 @@ export function run(rctx) {
       let buf;
       try { buf = rctx.readBytes(rel); } catch { continue; } // dangling symlink: CHK-08
       if (buf.subarray(0, 8000).includes(0)) continue; // binary
+      const script = SCRIPT_EXT.test(f);
       buf.toString('utf8').split('\n').forEach((line, i) => {
+        if (script && COMMENT_LINE.test(line)) return;
         for (const [label, re] of PATTERNS) if (re.test(line)) out.push({ path: rel, message: `${rel}:${i + 1}: ${label}` });
       });
     }

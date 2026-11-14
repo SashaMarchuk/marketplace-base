@@ -1,5 +1,6 @@
-// tools/cmd/bump.mjs: `mb bump <p>|--changed [patch|minor|major]` (SPEC §11).
+// tools/cmd/bump.mjs: `mb bump <p>|--changed [patch|minor|major]`.
 // Edits only the "version" string of plugin.src.json in place, so the hand-edited formatting stays.
+// Then runs `./mb gen` (the version is stamped into generated manifests), or says to.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from '../kit/json.mjs';
@@ -27,7 +28,7 @@ export function nextVersion(version, level) {
 
 /**
  * Plugins with a CHK-15 error, from `check --json` run in-process with captured output.
- * CHK-15 result paths start with plugins/<p> or examples/plugins/<p> (agreed with U5).
+ * CHK-15 result paths start with plugins/<p> or examples/plugins/<p>.
  */
 export async function changedPlugins(ctx, runCheck = defaultRunCheck) {
   const cmds = await ctx.listCommands();
@@ -97,5 +98,9 @@ export async function run(argv, ctx) {
     writeFileAtomic(j.file, next);
     ctx.stdout(`${j.pl.name}: ${j.from} -> ${j.to}\n`);
   }
-  return 0;
+  if (!(await ctx.listCommands()).some((c) => c.name === 'gen')) {
+    ctx.stdout('next: ./mb gen\n');
+    return 0;
+  }
+  return ctx.runCommand('gen', []);
 }

@@ -1,13 +1,14 @@
-// CHK-24: derived repos: the base repo (lock base.url) has a newer stable tag than the locked one
-// (SPEC section 12). Network; skipped with --offline (and by --fast). Info only. Pre-release tags
-// (v1.3.0-rc.1) are never "newer" (section 14.3).
+// CHK-24: derived repos: the base repo has a newer stable tag than the locked one. The base URL is
+// read like base-update reads it (marketplace.config.json base.url, else the lock). Network; skipped
+// with --offline (and by --fast). Info only. Pre-release tags (v1.3.0-rc.1) are never "newer".
 import { parse } from '../../kit/json.mjs';
 import { runGit } from '../git.mjs';
 import { LOCK_FILE } from '../ownership.mjs';
+import { baseUrlOf } from '../lock.mjs';
 
 export const id = 'CHK-24';
 export const severity = 'info';
-export const title = '`base.url` has a newer tag than the lock (network; skipped with `--offline`)';
+export const title = 'The base repo has a newer tag than the lock (network; skipped with `--offline`)';
 export const fix = './mb base-update';
 export const slow = true;
 
@@ -25,8 +26,10 @@ export function run(rctx) {
   if (rctx.isBase || rctx.opts.offline) return [];
   let lock;
   try { lock = parse(rctx.readBytes(LOCK_FILE)); } catch { return []; } // CHK-16
-  const url = lock?.base?.url, current = lock?.base?.tag;
-  if (typeof url !== 'string' || typeof current !== 'string') return [];
+  const current = lock?.base?.tag;
+  if (typeof current !== 'string') return [];
+  const url = baseUrlOf(rctx.root, lock);
+  if (typeof url !== 'string') return [];
   const r = runGit(['ls-remote', '--tags', url], { cwd: rctx.root });
   if (r.code !== 0) return [{ path: LOCK_FILE, message: `could not list tags of ${url}` }];
   let best = null;

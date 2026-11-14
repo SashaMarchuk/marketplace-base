@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// tools/mb.mjs: the `mb` dispatcher (SPEC §11). Launched by ./mb (POSIX) and mb.cmd (Windows).
+// tools/mb.mjs: the `mb` dispatcher. Launched by ./mb (POSIX) and mb.cmd (Windows).
 //
 // ===================== COMMAND MODULE CONTRACT (read before adding a command) =====================
 // A command is ONE file `tools/cmd/<verb>.mjs`. Dropping the file in is all it takes: the dispatcher
@@ -32,7 +32,7 @@
 //   ctx.argv             raw args after the verb (string[])
 //   ctx.args             { values, positionals } from the strict parse
 //   ctx.stdout(text)     write to stdout (no newline added); ctx.stderr(text) likewise
-//   ctx.isBase()         true when <root>/.mb-lock.json does not exist (SPEC §2)
+//   ctx.isBase()         true when <root>/.mb-lock.json does not exist
 //   ctx.usageError(msg)  returns an Error with exitCode 2; `throw ctx.usageError('...')`
 //   ctx.fail(code, msg)  returns an Error with that exitCode; `throw ctx.fail(3, 'bad policy')`
 //   ctx.runCommand(verb, argv) -> Promise<exit code>   run another command in-process (init -> gen)

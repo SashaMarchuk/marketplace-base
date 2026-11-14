@@ -1,4 +1,4 @@
-// tools/lib/policy/decide.mjs: turn loaded policy layers into per-plugin host decisions (SPEC §13).
+// tools/lib/policy/decide.mjs: turn loaded policy layers into per-plugin host decisions.
 //
 // For each plugin in the catalog (the plugins that reach the marketplaces):
 //   false  when an `access.deny` pattern of any layer matches, when some layer declares `access.allow`
@@ -6,7 +6,7 @@
 //          final enforced `enabled` is false;
 //   true   when the final enforced `enabled` is true and the plugin is not blocked;
 //   absent otherwise (the host default applies).
-// Final enforced `enabled`: layers are applied team then org, so org wins a conflict (resolver §7.3).
+// Final enforced `enabled`: layers are applied team then org, so org wins a conflict (as in the resolver).
 // A block always beats an enforced `true` (the resolver would exit 4 for that plugin).
 // Enforced entries and patterns that name no catalog plugin produce nothing; they are reported back
 // as `unknownPlugins` so the command can warn.
@@ -19,7 +19,7 @@ export function globMatch(pattern, name) {
   return re.test(name);
 }
 
-/** Leaves of an enforced settings object as [pointer, value]; empty objects are leaves (§7.3). */
+/** Leaves of an enforced settings object as [pointer, value]; empty objects are leaves. */
 function leaves(value, ptr = '') {
   if (value === null || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).length === 0) {
     return [[ptr, value]];

@@ -4,6 +4,8 @@ You can add a working, tested skill in under 10 minutes. You need Node.js 20 or 
 
 AI agents: also read [AGENTS.md](AGENTS.md).
 
+This file belongs to marketplace-base and is replaced by `./mb base-update`. In a derived marketplace, put your own contributor notes in `AGENTS.md` (outside the generated block) or under `docs/`.
+
 ## The 10-minute path
 
 **1. Scaffold** (1 minute). Pick a plugin name and a skill name (lowercase, hyphens). The description says what the skill does and *when to use it*: hosts use it to decide when the skill fires.
@@ -23,6 +25,9 @@ plugins/release-notes/
 ```
 
 Add `--config` if the skill needs settings: it also creates `plugins/release-notes/config.defaults.json` and a `config-respected` eval case.
+
+- `config.defaults.json` is a bare settings object, for example `{ "language": "en", "sections": ["Summary", "Decisions"] }` (see [docs/base/config.md](docs/base/config.md#making-a-plugin-configurable)).
+- The scaffolded `evals/config-respected/` case sets a value in its `scaffold.sh` and has one grader, `graders/config-effect.md`, a stub you must edit so it checks the visible effect of that setting (until then the case does not test anything). See [graders](docs/base/evals.md#graders) and [config cases](docs/base/evals.md#config-cases).
 
 **2. Write the skill** (5 minutes). Edit `skills/draft/SKILL.md`. Keep it under 500 lines; move long detail to `skills/draft/references/`. Then make the two eval prompts realistic: `evals/draft-trigger/prompt.md` should be a request that clearly needs the skill, and `evals/draft-no-trigger/prompt.md` a nearby request that does not.
 

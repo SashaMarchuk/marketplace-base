@@ -1,4 +1,5 @@
-// tools/cmd/new.mjs: `mb new plugin <p>` and `mb new skill <p>/<s> "<description>"` (SPEC §11, §15).
+// tools/cmd/new.mjs: `mb new plugin <p>`, `mb new skill <p>/<s> "<description>"` and
+// `mb new evals <p>/<s>` (the trigger + no-trigger cases for an existing skill).
 // Also exports the small repo helpers the other contributor commands share (bump, adopt, export,
 // try, config): plugin listing, marketplace config, templates.
 import fs from 'node:fs';
@@ -12,7 +13,8 @@ import { exampleIncluded } from '../lib/lock.mjs';
 export const name = 'new';
 export const summary = 'Scaffold a plugin or a skill (with its trigger and no-trigger eval cases).';
 export const usage = 'mb new plugin <p> [--category c] [--author n]\n' +
-  '       mb new skill <p>/<s> "<description>" [--config]';
+  '       mb new skill <p>/<s> "<description>" [--config]\n' +
+  '       mb new evals <p>/<s>';
 export const options = {
   category: { type: 'string' },
   author: { type: 'string' },
@@ -94,7 +96,7 @@ function titleOf(kebab) {
   return kebab.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
 }
 
-/** The empty config marker pair (whole lines), generated so no template holds a literal pair (O1). */
+/** The empty config marker pair (whole lines), generated so no template holds a literal pair. */
 function configPair() {
   const { begin, end } = markerLines('config');
   return `${begin}\n${end}\n`;
@@ -130,13 +132,22 @@ function caseFiles(kind, vars) {
   return walk(dir).map((rel) => ({ rel, text: render(readText(path.join(dir, ...rel.split('/'))), vars) }));
 }
 
+/** Write the plan. Output: one line per file, except one line per eval case dir (keeps it short). */
 function writePlan(root, plan, ctx) {
+  const caseFilesCount = new Map(); // case dir rel -> files written
   for (const f of plan) {
     const abs = path.join(root, ...f.rel.split('/'));
     if (f.dir) mkdirp(abs);
     else writeFileAtomic(abs, f.text);
+    const c = /^(.*\/evals\/[^/]+)\//.exec(f.rel);
+    if (c && !f.verb) {
+      if (!caseFilesCount.has(c[1])) caseFilesCount.set(c[1], 0);
+      caseFilesCount.set(c[1], caseFilesCount.get(c[1]) + 1);
+      continue;
+    }
     ctx.stdout(`  ${f.verb ?? 'created'} ${f.rel}${f.dir ? '/' : ''}\n`);
   }
+  for (const [dir, n] of caseFilesCount) ctx.stdout(`  created ${dir}/ (eval case, ${n} file(s))\n`);
 }
 
 /** Run another mb command if it is installed; returns its exit code, or null if missing. */
@@ -177,7 +188,8 @@ export async function run(argv, ctx) {
   const v = ctx.args.values;
   if (sub === 'plugin') return newPlugin(ctx, rest, v);
   if (sub === 'skill') return newSkill(ctx, rest, v);
-  throw ctx.usageError(sub === undefined ? 'missing "plugin" or "skill"' : `unknown kind "${sub}" (expected plugin or skill)`);
+  if (sub === 'evals') return newEvals(ctx, rest, v);
+  throw ctx.usageError(sub === undefined ? 'missing "plugin", "skill" or "evals"' : `unknown kind "${sub}" (expected plugin, skill or evals)`);
 }
 
 function newPlugin(ctx, rest, v) {
@@ -189,6 +201,37 @@ function newPlugin(ctx, rest, v) {
   ctx.stdout(`new plugin ${p}\n`);
   writePlan(ctx.root, newPluginPlan(ctx.root, p, `The ${p} plugin.`, v), ctx);
   ctx.stdout(`next: ./mb new skill ${p}/<skill> "<what it does. Use when ...>"\n`);
+  return 0;
+}
+
+/**
+ * `mb new evals <p>/<s>`: add the trigger and no-trigger cases to a skill that already exists (a
+ * migrated or hand-written skill). The skill and every other file are left untouched.
+ */
+async function newEvals(ctx, rest, v) {
+  if (rest.length !== 1) throw ctx.usageError('new evals takes exactly one <plugin>/<skill>');
+  if (v.config || v.category !== undefined || v.author !== undefined) throw ctx.usageError('new evals takes no options');
+  const m = /^([^/]+)\/([^/]+)$/.exec(rest[0]);
+  if (!m) throw ctx.usageError(`expected <plugin>/<skill>, got "${rest[0]}"`);
+  const [, p, s] = m;
+  const plugin = findPlugin(ctx.root, p);
+  if (!plugin) throw ctx.fail(1, `no plugin "${p}" (run ./mb new plugin ${p})`);
+  if (!listSkills(plugin.dir).includes(s)) throw ctx.fail(1, `${plugin.rel} has no skill "${s}" (run ./mb new skill ${p}/${s} "<description>")`);
+  const cfg = readMarketplaceConfig(ctx.root);
+  const vars = { plugin: p, skill: s, marketplace: cfg?.name ?? 'marketplace-base' };
+  const cases = [['trigger', `${s}-trigger`], ['no-trigger', `${s}-no-trigger`]];
+  for (const [, dirName] of cases) {
+    if (exists(path.join(plugin.dir, 'evals', dirName))) throw ctx.fail(1, `${plugin.rel}/evals/${dirName} already exists`);
+  }
+  const plan = [];
+  for (const [kind, dirName] of cases) {
+    for (const f of caseFiles(kind, vars)) plan.push({ rel: `${plugin.rel}/evals/${dirName}/${f.rel}`, text: f.text });
+  }
+  ctx.stdout(`new evals ${p}/${s}\n`);
+  writePlan(ctx.root, plan, ctx);
+  const checkCode = await runIfPresent(ctx, 'check', [p]);
+  if (checkCode) return checkCode;
+  ctx.stdout(`\nnext: write the prompts in ${plugin.rel}/evals/${s}-trigger/prompt.md and ${plugin.rel}/evals/${s}-no-trigger/prompt.md\n`);
   return 0;
 }
 
@@ -242,7 +285,7 @@ async function newSkill(ctx, rest, v) {
   }
   if (v.config) {
     if (!isFile(path.join(pdir, 'config.defaults.json'))) plan.push({ rel: `${pdirRel}/config.defaults.json`, text: canonicalPretty({}) });
-    // Every skill of a configurable plugin carries the config block (SPEC §3), so existing siblings get the pair.
+    // Every skill of a configurable plugin carries the config block, so existing siblings get the pair.
     for (const sib of listSkills(pdir)) {
       const rel = `${pdirRel}/skills/${sib}/SKILL.md`;
       const next = insertConfigPair(readText(path.join(root, ...rel.split('/'))));

@@ -1,4 +1,4 @@
-// CHK-13: secret-named keys hold ${env:NAME} references, never literals (SPEC sections 6.2, 12).
+// CHK-13: secret-named keys hold ${env:NAME} references, never literals.
 // Scanned: every plugin's config.defaults.json, policy/**/*.json, and a committed .<mkt>/config.json.
 // Matches whole key names only (so `maxTokens` passes). Objects/arrays under such a key are
 // searched recursively; non-empty strings and numbers must be a ${env:NAME} reference.

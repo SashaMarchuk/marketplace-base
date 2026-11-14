@@ -1,9 +1,9 @@
-// CHK-15: version bump required (SPEC sections 4.3, 12). Non-G files of a plugin (excluding evals/**
+// CHK-15: version bump required. Non-G files of a plugin (excluding evals/**
 // and README.md) changed since the comparison commit while src.version did not increase.
 // Comparison commit = merge-base(<ref>, HEAD), ref = --base or origin/<default-branch>. With
 // `--base HEAD^1` (push to the default branch) that is the first parent. Skipped (info) only when the
 // commit cannot be computed. Changes = `git diff <commit>` against the worktree, plus untracked files.
-// [spec-decided] The section 4.3 `_mb`-hash fallback is off (spike S1 decides; not switched on).
+// Changes under `_mb/` alone never require a bump (it is generated).
 import { parse } from '../../kit/json.mjs';
 import { runGit, showFile } from '../git.mjs';
 

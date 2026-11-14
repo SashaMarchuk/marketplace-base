@@ -11,10 +11,10 @@
 //     default: strict RFC 8259 JSON, plus: duplicate keys rejected, keys __proto__ / constructor /
 //              prototype rejected at any depth. Floats allowed. Used for CHK-01, marketplace.config.json,
 //              generated files, vector envelopes (whose `files` keys are paths).
-//     config:  default + SPEC §6.2 lexical rules, for config-FILE TEXT only (layer files,
+//     config:  default + the config-text rules, for config-FILE TEXT only (layer files,
 //              config.defaults.json, the file texts inside a vector's `files`):
 //              number tokens must match -?(0|[1-9][0-9]*) within +-(2^53-1); keys must match
-//              ^[A-Za-z0-9_-]{1,64}$ (top-level "$schema" allowed); lone surrogate escapes
+//              ^[A-Za-z0-9_:-]{1,64}$ (top-level "$schema" allowed); lone surrogate escapes
 //              (and raw lone surrogate code units) rejected.
 //   Both modes reject a leading BOM and invalid UTF-8.
 //   Returns plain objects (Object.prototype; safe because forbidden keys never reach assignment).
@@ -25,7 +25,7 @@
 //                NUMBER_RANGE, LONE_SURROGATE, TOO_DEEP.
 // tryParse(text, opts) -> { ok: true, value } | { ok: false, error }
 //
-// canonical(value)       compact canonical JSON (SPEC §7.5), NO trailing newline.
+// canonical(value)       compact canonical JSON, NO trailing newline.
 // canonicalPretty(value) pretty canonical JSON: sorted keys, 2-space indent, LF, WITH trailing "\n".
 //   Keys sorted by Unicode code point. Strings raw UTF-8; only `"`, `\` and U+0000-U+001F are
 //   escaped (\b \f \n \r \t, else \u00xx lowercase); a lone surrogate (only reachable from a
@@ -33,11 +33,11 @@
 //   non-integers use the shortest round-trip form (String(n)); NaN/Infinity throw. Object members
 //   whose value is undefined are omitted; undefined elsewhere, functions, symbols, bigint, and
 //   non-plain objects (Map, Date, class instances) throw TypeError.
-// same(a, b)          canonical text equality (SPEC §7.3 `same`).
+// same(a, b)          canonical text equality.
 // compareCodePoints   string comparator by code point (canonical key order).
 
 export const FORBIDDEN_KEYS = Object.freeze(['__proto__', 'constructor', 'prototype']);
-const CONFIG_KEY_RE = /^[A-Za-z0-9_-]{1,64}$/;
+const CONFIG_KEY_RE = /^[A-Za-z0-9_:-]{1,64}$/;
 const CONFIG_INT_RE = /^-?(0|[1-9][0-9]*)$/;
 const NUMBER_RE = /-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?/y;
 const MAX_DEPTH = 512;
@@ -210,7 +210,7 @@ export function parse(text, opts = {}) {
       if (FORBIDDEN_KEYS.includes(key)) fail('FORBIDDEN_KEY', `forbidden key ${JSON.stringify(key)}`, at);
       if (Object.prototype.hasOwnProperty.call(obj, key)) fail('DUPLICATE_KEY', `duplicate key ${JSON.stringify(key)}`, at);
       if (cfg && !CONFIG_KEY_RE.test(key) && !(depth === 0 && key === '$schema')) {
-        fail('BAD_KEY', `key ${JSON.stringify(key)} does not match ^[A-Za-z0-9_-]{1,64}$`, at);
+        fail('BAD_KEY', `key ${JSON.stringify(key)} does not match ^[A-Za-z0-9_:-]{1,64}$`, at);
       }
       ws();
       if (s[i] !== ':') fail('SYNTAX', `expected ':', ${describe()}`);

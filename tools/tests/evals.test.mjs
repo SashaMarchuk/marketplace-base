@@ -1,4 +1,4 @@
-// Tests for `mb eval` (SPEC §15): tools/cmd/eval.mjs and tools/lib/evals/*.mjs.
+// Tests for `mb eval`: tools/cmd/eval.mjs and tools/lib/evals/*.mjs.
 // No live host calls: the Codex streams are recorded `codex exec --json` output (Codex CLI 0.164.0,
 // scrubbed at capture: temp paths -> /tmp/mb-eval, thread ids zeroed) under
 // tools/tests/fixtures/evals/codex/, and every process call goes through an injected fake exec.
@@ -10,9 +10,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { splitFrontmatter, parseYaml } from '../lib/evals/frontmatter.mjs';
 import { listCases, loadCase, parseJsonl, traceSignals, gradeOne, gradeRun, scoreRun, scoreCase } from '../lib/evals/graders.mjs';
-import { buildClaudeArgs, makeJudge, summarizeNative } from '../lib/evals/claude.mjs';
+import { buildClaudeArgs, makeJudge, summarizeNative, nativeRuns, lastResultFromTrace } from '../lib/evals/claude.mjs';
 import { buildExecArgs, runCodexPlugin, realCodexHome } from '../lib/evals/codex.mjs';
-import { runEval } from '../cmd/eval.mjs';
+import { runEval, failureDetails } from '../cmd/eval.mjs';
+import { main } from '../mb.mjs';
+import { spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 
 const TOOLS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ROOT = path.dirname(TOOLS);
@@ -83,7 +86,7 @@ test('traceSignals: started + completed of one item count once; the SKILL.md rea
   assert.deepEqual(n, { commands: [], skills: [] });
 });
 
-// ---------------------------------------------------------------- grader mapping (§15.3)
+// ---------------------------------------------------------------- grader mapping
 
 test('MB-EVL-005: the real commit-message graders pass on the recorded trigger stream', async () => {
   const c = loadCase(path.join(CM, 'evals', 'trigger-staged-change'));
@@ -162,7 +165,7 @@ test('MB-EVL-006: SKIPPED never counts as a pass; an all-skipped case FAILS', as
   assert.equal(scoreCase([1, 0, 0], 0.6).passed, false);
 });
 
-// ---------------------------------------------------------------- Claude runner (§15.2)
+// ---------------------------------------------------------------- Claude runner
 
 test('MB-EVL-003: Claude command line snapshot (configurable plugin)', () => {
   const args = buildClaudeArgs({
@@ -197,9 +200,9 @@ test('judge: claude -p via stdin, no tools, verdict line parsed', async () => {
   assert.equal(await none('c', 'a'), null);
 });
 
-// ---------------------------------------------------------------- Codex runner (§15.3)
+// ---------------------------------------------------------------- Codex runner
 
-test('Codex exec argv (§15.3)', () => {
+test('Codex exec argv', () => {
   assert.deepEqual(buildExecArgs({ workdir: '/w', lastFile: '/l.txt', model: 'm', prompt: 'P' }),
     ['exec', '--json', '-s', 'workspace-write', '--ephemeral', '-C', '/w', '-o', '/l.txt', '-m', 'm', 'P']);
   assert.deepEqual(buildExecArgs({ workdir: '/w', lastFile: '/l.txt', prompt: 'P' }).includes('-m'), false);
@@ -387,7 +390,7 @@ test('mb eval: a missing host is SKIPPED: exit 7 when requested locally, 0 in CI
   }
 });
 
-test('mb eval --host claude: passes the plugin PATH and the §15.2 flags; native exit 1 = FAIL', async () => {
+test('mb eval --host claude: passes the plugin PATH and the runner flags; native exit 1 = FAIL', async () => {
   const root = fakeRepo();
   const calls = [];
   const exec = async (cmd, args) => {
@@ -405,4 +408,130 @@ test('mb eval --host claude: passes the plugin PATH and the §15.2 flags; native
   await assert.rejects(runEval(ctxFor(root, { host: 'x' }).ctx, { exec, env: {} }), (e) => e.exitCode === 2);
   await assert.rejects(runEval(ctxFor(root, { host: 'claude', runs: '0' }).ctx, { exec, env: {} }), (e) => e.exitCode === 2);
   await assert.rejects(runEval(ctxFor(root, { host: 'claude' }, ['nope']).ctx, { exec, env: {} }), (e) => e.exitCode === 2);
+});
+
+// ---------------------------------------------------------------- config cases, failure details, new evals
+
+/** Every config case dir: the template and each example case with a scaffold script. */
+function configCaseDirs() {
+  const dirs = [path.join(TOOLS, 'templates', 'evals', 'config-respected')];
+  if (fs.existsSync(EXAMPLES)) {
+    for (const p of fs.readdirSync(EXAMPLES)) {
+      for (const c of listCases(path.join(EXAMPLES, p))) if (fs.existsSync(path.join(c, 'scaffold.sh'))) dirs.push(c);
+    }
+  }
+  return dirs;
+}
+
+test('a config case has exactly ONE grader, so its score is the share of runs that honour the config', () => {
+  // config-* cases check a setting's effect; the access cases (blocked, malformed) fail at 0.5 or 0 anyway.
+  for (const dir of configCaseDirs().filter((d) => path.basename(d).startsWith('config-'))) {
+    const graders = fs.readdirSync(path.join(dir, 'graders')).filter((f) => f.endsWith('.md'));
+    assert.equal(graders.length, 1, `${dir}: ${graders.join(', ')}`);
+  }
+  // The template's stub is a regex grader that cannot pass until it is edited.
+  const stub = loadCase(path.join(TOOLS, 'templates', 'evals', 'config-respected')).graders;
+  assert.deepEqual(stub.map((x) => [x.name, x.type, x.target]), [['config-effect', 'regex', 'last_message']]);
+});
+
+test('the meeting-notes config grader needs both project sections and no default "Action items"', { skip: !fs.existsSync(path.join(EXAMPLES, 'meeting-notes')) && 'no example' }, async () => {
+  const [grader] = loadCase(path.join(EXAMPLES, 'meeting-notes', 'evals', 'config-sections')).graders;
+  const score = async (last) => (await gradeOne(grader, { lastMessage: last })).passed;
+  assert.equal(await score('## Context\n- a\n\n## Next steps\n- b'), true);
+  assert.equal(await score('## Summary\n## Decisions\n## Action items\n- b'), false, 'defaults (config ignored)');
+  assert.equal(await score('## Context\n## Next steps\n## Action items'), false);
+});
+
+test('each config scaffold makes the workspace its own git root before writing the project layer', { skip: process.platform === 'win32' && 'POSIX sh' }, () => {
+  const git = spawnSync('git', ['--version']);
+  for (const dir of configCaseDirs()) {
+    const text = fs.readFileSync(path.join(dir, 'scaffold.sh'), 'utf8');
+    assert.ok(text.indexOf('git init -q .') !== -1 && text.indexOf('git init -q .') < text.indexOf('mkdir -p ".$mkt"'), dir);
+  }
+  if (git.status !== 0) return; // no git: the static check above is all we can do
+  // Like the Claude sandbox: the workspace sits inside another repo. The scaffold must win the walk-up.
+  const outer = tmpDir('mb-eval-outer-');
+  spawnSync('git', ['init', '-q'], { cwd: outer });
+  const ws = path.join(outer, 'cwd');
+  fs.mkdirSync(ws);
+  const script = path.join(EXAMPLES, 'meeting-notes', 'evals', 'config-sections', 'scaffold.sh');
+  if (!fs.existsSync(script)) return;
+  const env = { PATH: process.env.PATH, HOME: outer, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: path.join(outer, 'none') };
+  assert.equal(spawnSync('sh', [script], { cwd: ws, env }).status, 0);
+  const top = spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd: ws, env, encoding: 'utf8' }).stdout.trim();
+  assert.equal(fs.realpathSync(top), fs.realpathSync(ws));
+  assert.ok(fs.readdirSync(ws).some((f) => f.startsWith('.') && fs.existsSync(path.join(ws, f, 'config.json'))));
+});
+
+test('--keep-temp reaches claude plugin eval (before the variadic --allow-tools)', () => {
+  const a = buildClaudeArgs({ pluginPath: 'p', jsonOut: 'j', configurable: true, keepTemp: true });
+  assert.ok(a.indexOf('--keep-temp') !== -1 && a.indexOf('--keep-temp') < a.indexOf('--allow-tools'));
+  assert.ok(!buildClaudeArgs({ pluginPath: 'p', jsonOut: 'j' }).includes('--keep-temp'));
+});
+
+test('failure details from a native case: failed graders with reasons, the answer from a kept trace', () => {
+  const dir = tmpDir('mb-eval-trace-');
+  const trace = path.join(dir, 'trace.jsonl');
+  const answer = Array.from({ length: 25 }, (_, i) => `line ${i + 1}`).join('\n');
+  fs.writeFileSync(trace, ['{"type":"system"}', JSON.stringify({ type: 'result', result: answer }), ''].join('\n'));
+  assert.equal(lastResultFromTrace(trace), answer);
+  assert.equal(lastResultFromTrace(path.join(dir, 'gone.jsonl')), null);
+  const native = { arms: { with: [
+    { error: null, tracePath: trace, graders: [{ name: 'cfg', passed: false, explanation: 'pattern not found in last_message', scored: true }, { name: 'ok', passed: true, scored: true }] },
+    { error: 'timeout', tracePath: path.join(dir, 'gone.jsonl'), graders: [] },
+  ] } };
+  const runs = nativeRuns(native);
+  assert.deepEqual(runs[0].graders[0], { name: 'cfg', passed: false, skipped: false, reason: 'pattern not found in last_message' });
+  const text = failureDetails(runs, { keep: true });
+  assert.match(text, /run 1: failed cfg: pattern not found in last_message/);
+  assert.match(text, /run 1: final answer \(first 20 of 25 line\(s\)\):\n {6}\| line 1\n/);
+  assert.ok(text.includes('| line 20\n') && !text.includes('| line 21'));
+  assert.match(text, /run 2: error: timeout/);
+  assert.doesNotMatch(text, /re-run with --keep-temp/);
+  assert.match(failureDetails(runs), /re-run with --keep-temp/);
+});
+
+test('a failing codex case prints the failed graders and the answer; --keep-temp keeps the temp dir', async () => {
+  const root = fakeRepo();
+  const real = fakeRealHome();
+  const miss = fakeExec({ streamFor: () => NO_TRIGGER });
+  const { ctx, out } = ctxFor(root, { host: 'codex', case: 'trigger-*', 'keep-temp': true });
+  assert.equal(await runEval(ctx, { exec: miss.exec, env: { ...process.env, CODEX_HOME: real, CI: '' } }), 1);
+  assert.match(out.stdout, /FAIL codex commit-message\/trigger-staged-change[^\n]*\n {4}run 1: failed /);
+  assert.match(out.stdout, /final answer \(first /);
+  const kept = /kept codex commit-message: (\S+)/.exec(out.stdout);
+  assert.ok(kept && fs.existsSync(path.join(kept[1], 'case-0', 'last-0.txt')), out.stdout);
+  TEMP.push(kept[1]);
+  const j = JSON.parse(fs.readFileSync(path.join(root, 'dist', 'evals', 'codex-commit-message.json'), 'utf8'));
+  assert.equal(typeof j.cases[0].runs[0].lastMessage, 'string');
+});
+
+test('mb new evals <p>/<s> adds the trigger and no-trigger cases to an existing skill only', async () => {
+  const root = tmpDir('mb-eval-new-');
+  fs.writeFileSync(path.join(root, 'marketplace.config.json'), JSON.stringify({ name: 'acme' }));
+  const pdir = path.join(root, 'plugins', 'demo');
+  fs.mkdirSync(path.join(pdir, 'skills', 'legacy'), { recursive: true });
+  fs.writeFileSync(path.join(pdir, 'plugin.src.json'), JSON.stringify({ name: 'demo', version: '0.1.0', description: 'Demo.' }));
+  const skill = '---\nname: legacy\ndescription: Legacy. Use when testing.\n---\n\n# Legacy\n';
+  fs.writeFileSync(path.join(pdir, 'skills', 'legacy', 'SKILL.md'), skill);
+  const cmdDir = tmpDir('mb-eval-cmd-'); // only `new`: no gen/check run here
+  fs.writeFileSync(path.join(cmdDir, 'new.mjs'), `export * from ${JSON.stringify(pathToFileURL(path.join(TOOLS, 'cmd', 'new.mjs')).href)};\n`);
+  const mb = async (argv) => {
+    let o = '';
+    const code = await main(argv, { root, cmdDir, cwd: root, stdout: (x) => { o += x; }, stderr: (x) => { o += x; } });
+    return { code, out: o };
+  };
+  const r = await mb(['new', 'evals', 'demo/legacy']);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /created plugins\/demo\/evals\/legacy-trigger\/ \(eval case, 2 file\(s\)\)/);
+  for (const f of ['legacy-trigger/prompt.md', 'legacy-trigger/graders/skill-fired.md', 'legacy-no-trigger/prompt.md', 'legacy-no-trigger/graders/skill-not-fired.md']) {
+    assert.ok(fs.existsSync(path.join(pdir, 'evals', ...f.split('/'))), f);
+  }
+  assert.match(fs.readFileSync(path.join(pdir, 'evals', 'legacy-trigger', 'graders', 'skill-fired.md'), 'utf8'), /\?legacy"'/);
+  assert.equal(fs.readFileSync(path.join(pdir, 'skills', 'legacy', 'SKILL.md'), 'utf8'), skill, 'the skill is untouched');
+  assert.equal((await mb(['new', 'evals', 'demo/legacy'])).code, 1, 'cases exist');
+  assert.equal((await mb(['new', 'evals', 'demo/nope'])).code, 1, 'no such skill');
+  assert.equal((await mb(['new', 'evals', 'nope/legacy'])).code, 1, 'no such plugin');
+  assert.equal((await mb(['new', 'evals', 'demo/legacy', '--config'])).code, 2);
+  assert.equal((await mb(['new', 'evals'])).code, 2);
 });

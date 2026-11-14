@@ -1,14 +1,16 @@
-// tools/cmd/test.mjs: `mb test [--vectors-only] [--runtime node|bun] [--derive]` (SPEC §11, §20).
+// tools/cmd/test.mjs: `mb test [--vectors-only] [--runtime node|bun] [--derive]`.
 //
 // 1. Unit tests: `node --test <files>`, with every tools/tests/**/*.test.mjs listed explicitly
-//    (Node 22 rejects a directory argument; ruling O2). tools/tests/fixtures/** is never scanned, and
-//    derive.test.mjs runs only with --derive.
+//    (Node 22 rejects a directory argument). tools/tests/fixtures/** is never scanned, and
+//    derive.test.mjs runs only with --derive. Plugin-own tests are added too:
+//    {plugins,examples/plugins}/<p>/tests/**/*.test.mjs (node --test only; any other harness, such as
+//    a shell run.sh or pytest, is the plugin's own CI step and is not run by mb).
 // 2. Conformance vectors: every tools/kit/vectors/<v>/ through `<runtime> <copy> merge`, comparing
 //    stdout bytes with expected.json and the exit code with expected.exit. Copies = the source
 //    tools/kit/resolve.mjs plus each vendored {plugins,examples/plugins}/<p>/skills/<s>/_mb/resolve.mjs
-//    (ruling O6: never a tree walk; tools/tests/fixtures holds stub copies).
-// --derive runs only the derive/update proof (SPEC §14.4): tools/tests/derive.test.mjs, then
-// `deriveProof(ctx)` from tools/lib/derive.mjs when that module exports it (owned by U9).
+//    (never a tree walk; tools/tests/fixtures holds stub copies).
+// --derive runs only the derive/update proof: tools/tests/derive.test.mjs, then
+// `deriveProof(ctx)` from tools/lib/derive.mjs when that module exports it.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -39,14 +41,24 @@ function exec(cmd, args, { cwd, input, forward } = {}) {
   });
 }
 
-/** Sorted POSIX rel paths of the unit test files. */
+/** Sorted POSIX rel paths of the unit test files: tools/tests first, then each plugin's tests/. */
 export function testFiles(root) {
-  return walk(path.join(root, 'tools', 'tests'), { ignore: (rel) => rel === 'fixtures' || rel.startsWith('fixtures/') })
+  const files = walk(path.join(root, 'tools', 'tests'), { ignore: (rel) => rel === 'fixtures' || rel.startsWith('fixtures/') })
     .filter((rel) => rel.endsWith('.test.mjs'))
     .map((rel) => `tools/tests/${rel}`);
+  for (const base of ['plugins', 'examples/plugins']) {
+    const absBase = path.join(root, ...base.split('/'));
+    if (!isDir(absBase)) continue;
+    for (const p of fs.readdirSync(absBase).sort()) {
+      const tests = path.join(absBase, p, 'tests');
+      if (!isDir(tests)) continue;
+      for (const rel of walk(tests)) if (rel.endsWith('.test.mjs')) files.push(`${base}/${p}/tests/${rel}`);
+    }
+  }
+  return files;
 }
 
-/** Resolver copies: the source first, then vendored copies under the O6 roots only. */
+/** Resolver copies: the source first, then vendored copies under the known roots only. */
 export function resolverCopies(root) {
   const copies = ['tools/kit/resolve.mjs'];
   for (const base of ['plugins', 'examples/plugins']) {

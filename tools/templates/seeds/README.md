@@ -29,6 +29,8 @@ Add a skill in under 10 minutes: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 This repo is derived from [marketplace-base]({{baseUrl}}). Base docs are in [docs/base/](docs/base/); pull base updates with `./mb base-update` (see [docs/base/derive-update.md](docs/base/derive-update.md)).
 
+Example plugins under `examples/plugins/` belong to the base and are overwritten by `./mb base-update`: run `./mb adopt <p>` before you edit one. To drop one, adopt it and delete `plugins/<p>`, or remove it from `includeExamples` in `marketplace.config.json` and delete its folder.
+
 ## License
 
 [MIT](LICENSE)

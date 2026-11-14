@@ -1,4 +1,4 @@
-// tools/cmd/init.mjs: `mb init` (SPEC §11, §14.1-14.2). Turns a fresh template copy or clone of the
+// tools/cmd/init.mjs: `mb init`. Turns a fresh template copy or clone of the
 // base into a derived marketplace: renders the S seeds, deletes the examples not selected, writes
 // `.mb-lock.json` (B and E paths only), then runs `gen` and `check`.
 //
@@ -7,15 +7,20 @@
 // is no longer a pristine base copy (marketplace.config.json#name != marketplace-base, unless
 // --force), and when the marketplace sits in a subdirectory of an enclosing git repo.
 //
-// [spec-decided] `--examples` is recorded in `includeExamples` (all -> true, none -> false, a list ->
-// that sorted list), so a later base-update knows which examples are "not included" (§14.3 row 1)
+// `--examples` is recorded in `includeExamples` (all -> true, none -> false, a list ->
+// that sorted list), so a later base-update knows which examples are "not included" (decision table row 1)
 // and never brings deleted examples back, while an `all` repo still receives new examples.
+// Re-init (`--force` with an existing lock) never overwrites an S file: it writes only
+// the seeds that are missing, patches only `includeExamples` in marketplace.config.json (and only
+// when --examples is given), and deletes the examples no longer selected.
+// The lock's base commit comes from `git ls-remote <base.url>` (peeled), else from a
+// local tag of the same name (a clone); when neither works the message names the failed lookup.
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse } from '../kit/json.mjs';
 import { fromPosix, walk, writeFileAtomic, writeJson, removePath, isDir } from '../lib/fsx.mjs';
-import { gitRoot, lsRemoteTag } from '../lib/git.mjs';
+import { gitRoot, lsRemoteTag, runGit } from '../lib/git.mjs';
 import { compileOwnership, loadOwnership, LOCK_FILE } from '../lib/ownership.mjs';
 import { hashFile } from '../lib/hash.mjs';
 import { validate, loadSchema } from '../lib/schema-lite.mjs';
@@ -51,6 +56,19 @@ function renderTokens(text, tokens, escape, rel) {
   return out;
 }
 
+/** { commit, why }: the tag's commit from the base URL, else from a local tag; `why` explains a null. */
+function baseCommit(root, url, tag) {
+  const remote = lsRemoteTag(root, url, tag);
+  if (remote) return { commit: remote, why: null };
+  const local = runGit(['rev-parse', '-q', '--verify', `refs/tags/${tag}^{commit}`], { cwd: root });
+  if (local.code === 0 && local.stdout.trim()) return { commit: local.stdout.trim(), why: null };
+  const reachable = runGit(['ls-remote', '--heads', url], { cwd: root }).code === 0;
+  return {
+    commit: null,
+    why: reachable ? `tag ${tag} not found at ${url} or locally` : `could not reach ${url}; no local tag ${tag}`,
+  };
+}
+
 function listExamples(root) {
   const dir = path.join(root, 'examples', 'plugins');
   if (!isDir(dir)) return [];
@@ -75,7 +93,7 @@ export async function run(argv, ctx) {
   if (top && !sameDir(top, root)) throw ctx.fail(2, `the marketplace must be the top level of its git repository (found ${top})`);
 
   const lockExists = fs.existsSync(path.join(root, LOCK_FILE));
-  if (lockExists && !v.force) throw ctx.fail(1, `${LOCK_FILE} exists: this repo is already initialised (use --force to re-run init; it re-renders every seed file)`);
+  if (lockExists && !v.force) throw ctx.fail(1, `${LOCK_FILE} exists: this repo is already initialised (use --force to re-run init; it writes only missing seed files and applies --examples, never overwriting yours)`);
 
   const baseConfig = parse(fs.readFileSync(path.join(root, CONFIG)));
   if (!lockExists && baseConfig.name !== 'marketplace-base' && !v.force) {
@@ -86,9 +104,12 @@ export async function run(argv, ctx) {
   const tag = parse(fs.readFileSync(path.join(root, '.mb', 'base-version.json'))).version;
   if (!parseTag(tag)) throw ctx.fail(3, `.mb/base-version.json: "${tag}" is not a vX.Y.Z tag`);
 
-  // Examples selection.
+  // Examples selection. A re-init without --examples keeps the recorded selection.
   const examples = listExamples(root);
-  const sel = v.examples ?? 'all';
+  const recorded = lockExists ? baseConfig.includeExamples ?? true : true;
+  let sel = v.examples ?? 'all';
+  if (v.examples === undefined && recorded === false) sel = 'none';
+  if (v.examples === undefined && Array.isArray(recorded)) sel = recorded.filter((p) => examples.includes(p)).join(',') || 'none';
   let keep, includeExamples;
   if (sel === 'all') {
     keep = examples;
@@ -121,6 +142,15 @@ export async function run(argv, ctx) {
   for (const rel of walk(seedRoot)) {
     const target = SEED_RENAMES[rel] ?? rel;
     if (classify(target) !== 'S') throw ctx.fail(1, `seed ${rel} would write ${target}, which is not an S path in .mb/ownership.json`);
+    if (lockExists && target === CONFIG) {
+      // Re-init: the existing config is the user's; only includeExamples may change.
+      const json = { ...baseConfig, includeExamples };
+      const bad = validate(loadSchema(root, 'marketplace-config'), json);
+      if (bad.length) throw ctx.fail(1, `${CONFIG} is invalid: ${bad.map((b) => `${b.path} ${b.message}`).join('; ')}`);
+      if (JSON.stringify(recorded) !== JSON.stringify(includeExamples)) rendered.set(target, json);
+      continue;
+    }
+    if (lockExists && fs.existsSync(fromPosix(root, target))) continue; // never overwrite an S file
     const text = fs.readFileSync(path.join(seedRoot, ...rel.split('/')), 'utf8');
     if (target === CONFIG) {
       const json = parse(renderTokens(text, { ...tokens, repo: v.repo ?? 'x/y' }, (s) => JSON.stringify(s).slice(1, -1), rel));
@@ -134,7 +164,7 @@ export async function run(argv, ctx) {
       rendered.set(target, renderTokens(text, tokens, (s) => s, rel));
     }
   }
-  if (!rendered.has(CONFIG)) throw ctx.fail(1, `tools/templates/seeds/${CONFIG} is missing`);
+  if (!lockExists && !rendered.has(CONFIG)) throw ctx.fail(1, `tools/templates/seeds/${CONFIG} is missing`);
 
   // A forced re-init keeps the recorded hash of every path already locked, so a local edit of a
   // B/E file is not "laundered" into the lock (it must stay a conflict for base-update and CHK-16).
@@ -142,7 +172,7 @@ export async function run(argv, ctx) {
   const adopted = oldLock ? oldLock.adopted : [];
 
   // Base commit of the tag: peeled ^{} line preferred (annotated), else the plain line (lightweight).
-  const commit = lsRemoteTag(root, baseUrl, tag);
+  const { commit, why } = baseCommit(root, baseUrl, tag);
 
   // ---- writes start here ----
   for (const [target, content] of rendered) {
@@ -166,8 +196,8 @@ export async function run(argv, ctx) {
   for (const rel of repoFiles(root)) if (lockable(rel) && !Object.hasOwn(files, rel)) files[rel] = hashFile(fromPosix(root, rel));
   writeLock(root, { base: { url: baseUrl, tag, commit }, files, adopted });
 
-  ctx.stdout(`initialised ${v.name} from base ${tag} (${commit ?? 'commit unknown: offline; the next base-update fills it'})\n`);
-  ctx.stdout(`seeds rendered: ${[...rendered.keys()].sort().join(', ')}\n`);
+  ctx.stdout(`initialised ${v.name} from base ${tag} (${commit ?? `commit unknown: ${why}; the next base-update fills it`})\n`);
+  ctx.stdout(`seeds ${lockExists ? 'written (missing or includeExamples changed)' : 'rendered'}: ${[...rendered.keys()].sort().join(', ') || '(none)'}\n`);
   ctx.stdout(`examples kept: ${keep.join(', ') || '(none)'}${drop.length ? `; deleted: ${drop.join(', ')}` : ''}\n`);
   ctx.stdout(`${LOCK_FILE}: ${Object.keys(files).length} base files locked\n`);
 

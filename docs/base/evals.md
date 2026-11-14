@@ -15,7 +15,9 @@ plugins/<p>/evals/<case>/
 
 `prompt.md` frontmatter keys: `name, description, tags, plugins, runs, expected_outcome, model, max_turns, timeout_seconds, allowed_tools, append_system_prompt, env`. Any other key is an error.
 
-Grader frontmatter: `type`, `weight`, `arm` (`with-only | both`), plus options for the type:
+### Graders
+
+Grader frontmatter: `type`, `weight`, `arm` (`with-only | both`), plus options for the type. `./mb check` (CHK-14) rejects a grader without frontmatter, a `type` outside this table, and a `regex` without `pattern`, a `tool_used` without `tool` or a `file_exists` without `path`:
 
 | Type | Options |
 |---|---|
@@ -26,7 +28,7 @@ Grader frontmatter: `type`, `weight`, `arm` (`with-only | both`), plus options f
 | `llm` | the body is the criteria; `focus` |
 | `baseline` | none |
 
-Every skill needs at least one **trigger** case and one **no-trigger** case (CHK-14). `./mb new skill` scaffolds both with these graders (shown indented):
+Every skill needs at least one **trigger** case and one **no-trigger** case (CHK-14). `./mb new skill` scaffolds both with these graders (shown indented). For a skill that already exists (migrated or written by hand), `./mb new evals <p>/<s>` adds just these two cases and leaves the skill alone:
 
     # graders/skill-fired.md
     ---
@@ -46,19 +48,27 @@ Every skill needs at least one **trigger** case and one **no-trigger** case (CHK
     arm: both
     ---
 
+### Config cases
+
 Config cases write a project config with a scaffold script (`case.yaml`: `schema_version: "1.0"`, `name`, `context.scaffold_script`), set `allowed_tools: [Read, Glob, Grep, Skill, Bash]`, and run with `--scaffold` (automatic for configurable plugins). Claude Code runs the scaffold with a fixed environment, so `EVAL_*` variables do not reach it: the script uses `EVAL_MB_MARKETPLACE` when set (the Codex runner sets it) and otherwise the marketplace name written into it when the case was created. Keep scaffolds POSIX `sh`.
+
+- **The scaffold runs `git init -q .` first.** The resolver reads the project layer from the git root (`git rev-parse --show-toplevel`), and the Claude eval workspace sits inside another git repo. Without its own repo the project file is never read and every value comes from the defaults.
+- **A config case has ONE grader**: the one that checks the visible effect of the setting. Its score is then exactly the share of runs that honour the config. The trigger case already checks that the skill fires; extra graders would let a run that ignores the config still score above the threshold. `./mb new skill --config` scaffolds `config-respected/` with `scaffold.sh` (put the setting in it) and a `graders/config-effect.md` stub: a `regex` whose placeholder `pattern` fails until you replace it with text only the configured setting produces (or switch to `type: llm` with the criteria in the body).
+- `config.defaults.json` is a bare settings object, not a layer file: `{"sections": ["Summary", "Decisions"], "maxItems": 10}`.
 
 A local Claude run under a temporary `CLAUDE_CONFIG_DIR` is not logged in: pass `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in the environment (never write it to a file).
 
 ## Running
 
 ```sh
-./mb eval [<p>...] --host claude|codex|all [--case <glob>] [--runs n] [--scaffold]
+./mb eval [<p>...] --host claude|codex|all [--case <glob>] [--runs n] [--scaffold] [--keep-temp]
 ```
 
-Settings come from `evals` in `marketplace.config.json`: `threshold` (default 0.6), `runs` (default 3; 0.6 with 3 runs means 2 of 3 must pass), `maxCostUsd`, and optional pinned `models` (`claude`, `codex`, `judge`). Results go to `dist/evals/<host>-<p>.json`. The command exits 1 if any case is below the threshold.
+Settings come from `evals` in `marketplace.config.json`: `threshold` (default 0.6), `runs` (default 3), `maxCostUsd`, and optional pinned `models` (`claude`, `codex`, `judge`). A case passes when its score (see **Scoring** below) is at least the threshold; for a case with one grader and 3 runs, 0.6 means 2 of 3 runs must pass. Results go to `dist/evals/<host>-<p>.json`. The command exits 1 if any case is below the threshold.
 
-**Claude runner.** `claude plugin eval <pdir> --trust-plugin --ablation none --no-publish --json dist/evals/claude-<p>.json --output-dir dist/evals/claude-<p>` with the threshold, runs, models and cost cap, and for configurable plugins `--scaffold --allow-tools "Bash(node:*)" "Bash(sh:*)"`. `--ablation none` is required: with a no-plugin baseline arm, `tool_used: Skill` is not scored. `--output-dir` keeps the HTML report out of the plugin's `evals/` dir.
+**A failing case** prints, per run, the error or each grader that did not pass with its reason, then the first 20 lines of the final answer. Claude deletes its workspace after the run, so add `--keep-temp` to see the answer and keep the trace (Claude: passed on as `--keep-temp`; the kept dir is read-only, see the note it prints). For Codex, `--keep-temp` keeps the temp dir (`case-<i>/work-<n>/` workdirs, `case-<i>/last-<n>.txt` answers, the temp `CODEX_HOME`) and prints its path.
+
+**Claude runner.** `claude plugin eval <pdir> --trust-plugin --ablation none --no-publish --json dist/evals/claude-<p>.json --output-dir dist/evals/claude-<p>` with the threshold, runs, models and cost cap, `--keep-temp` when given, and for configurable plugins `--scaffold --allow-tools "Bash(node:*)" "Bash(sh:*)"`. `--ablation none` is required: with a no-plugin baseline arm, `tool_used: Skill` is not scored. `--output-dir` keeps the HTML report out of the plugin's `evals/` dir.
 
 **Codex runner.** Codex has no eval command, so `mb` runs each case itself:
 
@@ -76,7 +86,7 @@ Settings come from `evals` in `marketplace.config.json`: `threshold` (default 0.
 | other `tool_used`, `tool_order`, `baseline` | SKIPPED |
 | `llm` | judged by `claude -p` when Claude is logged in, else SKIPPED |
 
-**Scoring.** SKIPPED never counts as a pass, and a case whose graders are all skipped fails. A Codex run that exits non-zero, times out or ends without `turn.completed` scores 0 without grading. A `tool_used` grader without `min` counts as `min: 1`, so the templates always set `min`. Run score = weighted mean of the scored graders; case score = mean over runs.
+**Scoring.** SKIPPED never counts as a pass, and a case whose graders are all skipped fails. A Codex run that exits non-zero, times out or ends without `turn.completed` scores 0 without grading. A `tool_used` grader without `min` counts as `min: 1`, so the templates always set `min`. Run score = weighted mean of the scored graders; case score = mean over runs. Both runners compute it this way (Claude: `aggregates.score` of the native result).
 
 A host without its CLI or credentials is reported SKIPPED: exit 0 in CI or with `--host all`; exit 7 locally when you named that host (`--host claude` or `--host codex`).
 

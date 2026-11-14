@@ -1,6 +1,6 @@
 // CHK-03: plugin.src.json matches its schema; name == dir; names unique across plugins/ and the
-// included examples (SPEC sections 3, 4, 12). Also warns on a codex authentication other than
-// ON_INSTALL (section 3: the only verified value).
+// included examples. Also warns on a codex authentication other than
+// ON_INSTALL (the only verified value).
 import { parse } from '../../kit/json.mjs';
 import { validate, loadSchema } from '../schema-lite.mjs';
 
@@ -15,7 +15,8 @@ export function run(rctx) {
   for (const p of rctx.plugins) {
     const rel = `${p.dir}/plugin.src.json`;
     if (!rctx.exists(rel)) {
-      out.push({ path: rel, message: 'missing plugin.src.json', fix: `./mb new plugin ${p.name}` });
+      // `./mb new plugin` refuses an existing dir, so the hint says what to write instead.
+      out.push({ path: rel, message: 'missing plugin.src.json', fix: `write ${rel} with "name": "${p.name}", "version", "description" (schema: tools/schemas/plugin-src.schema.json)` });
       continue;
     }
     let src;

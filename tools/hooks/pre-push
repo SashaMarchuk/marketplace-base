@@ -1,5 +1,5 @@
 #!/bin/sh
-# marketplace-base pre-push hook (SPEC section 16, step 4). Installed by `./mb github setup` with
+# marketplace-base pre-push hook. Installed by `./mb github setup` with
 # `git config core.hooksPath tools/hooks` when GitHub branch rules are not available (for example
 # GitHub Free private repos), so the same gates run locally before every push:
 #   ./mb check --fast   (all fast rules, including the CHK-20 leak scan)

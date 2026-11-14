@@ -19,7 +19,7 @@ Paths: root = gitRoot ?? cwd; sep = "\\" on win32 else "/".
 Parsing: INPUT itself is plain JSON (its `files` keys are paths). Every FILE TEXT (each value of
   `files`, each file read in real mode) is strict: reject duplicate keys; number tokens not matching
   -?(0|[1-9][0-9]*) (so 1e3 and 1.0 are errors) or outside +-(2^53-1); a leading BOM; invalid UTF-8;
-  lone surrogate escapes (\ud800-\udfff not in a valid pair); keys not matching ^[A-Za-z0-9_-]{1,64}$
+  lone surrogate escapes (\ud800-\udfff not in a valid pair); keys not matching ^[A-Za-z0-9_:-]{1,64}$
   (top-level "$schema" allowed); keys __proto__, constructor, prototype at any depth.
   Use maps / null-prototype objects.
 Shape: top keys $schema, settings{}, plugins{<p>:{enabled:bool, settings:{}}}, enforced{settings, plugins},
@@ -58,3 +58,4 @@ OUTPUT keys (always all): blocked, errors, locked, ok, plugin, provenance, setti
   Canonical: sorted keys, no whitespace, integers, raw UTF-8, escape only " \ and U+0000-001F
   (\b \f \n \r \t else \u00xx lowercase); warnings/errors sorted by their canonical text, deduped.
 Exit: 0 ok | 3 error | 4 blocked | 5 specVersion > 1 (SPEC_UNSUPPORTED) | 2 usage.
+  Blocked keeps ok=true and settings; blocked=true and exit 4 are authoritative (consumers stop).

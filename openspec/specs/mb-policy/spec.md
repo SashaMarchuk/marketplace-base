@@ -13,7 +13,7 @@ Defines how org and team policy is turned into host-native policy files, and how
 - **THEN** the drop-in equals the golden file and `SHA256SUMS` is correct (test tools/tests/policy.test.mjs)
 
 ### Requirement: MB-POL-002 Codex requirements (unverified flag)
-`mb policy emit --host codex` SHALL emit only the marketplace-source restriction in `requirements.toml`, with an UNVERIFIED header until a spike verifies the shape, and SHALL write every other policy to `README.txt` as advisory.
+`mb policy emit --host codex` SHALL emit only the marketplace-source restriction in `requirements.toml`, with an UNVERIFIED header until the shape is verified against a live Codex release, and SHALL write every other policy to `README.txt` as advisory.
 
 #### Scenario: Codex output is labelled
 - **WHEN** policy emit runs for Codex

@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import { makeRepo, runRule, gitInit, git, tmpDir, write } from './_fixture.mjs';
 import { newer } from '../../lib/rules/CHK-24.mjs';
 
@@ -29,6 +31,16 @@ test('CHK-24 reports (info) a newer stable tag; --offline skips', async () => {
   assert.match(r[0].message, /base v0\.2\.0 is available/);
   assert.equal(r[0].fix, './mb base-update');
   assert.deepEqual(await runRule('CHK-24', derived(base, 'v0.1.0'), { offline: true }), []);
+});
+
+test('CHK-24 reads base.url from marketplace.config.json first, like base-update', async () => {
+  const base = baseRepo();
+  const root = derived('/nonexistent/old-base-url', 'v0.1.0');
+  const cfg = JSON.parse(fs.readFileSync(path.join(root, 'marketplace.config.json'), 'utf8'));
+  write(root, 'marketplace.config.json', JSON.stringify({ ...cfg, base: { url: base } }));
+  const r = await runRule('CHK-24', root);
+  assert.equal(r.length, 1);
+  assert.match(r[0].message, /base v0\.2\.0 is available/);
 });
 
 test('CHK-24 version order', () => {

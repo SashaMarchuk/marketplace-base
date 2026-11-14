@@ -1,5 +1,5 @@
 // CHK-10: `gen --check` is clean: every generated file, vendored `_mb/` byte equality and the G
-// marker bodies match what `./mb gen` would write (SPEC §12). Uses the generator API directly.
+// marker bodies match what `./mb gen` would write. Uses the generator API directly.
 import { build, diff } from '../gen/build.mjs';
 
 export const id = 'CHK-10';

@@ -1,4 +1,4 @@
-// tools/cmd/try.mjs: `mb try <p> --host claude|codex [prompt]` (SPEC §11, §15.3): a live smoke run.
+// tools/cmd/try.mjs: `mb try <p> --host claude|codex [prompt]`: a live smoke run.
 // Claude: claude -p "<prompt>" --plugin-dir <pdir>.
 // Codex: an isolated install (temp CODEX_HOME with a copied auth.json, marketplace add + plugin add)
 // and `codex exec` in a temp git workdir. Never touches the real ~/.claude or ~/.codex.

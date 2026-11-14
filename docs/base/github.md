@@ -58,4 +58,4 @@ Add your own workflows under any other name (not `mb-*.yml`).
 1. `./mb gen --check && ./mb check && ./mb test` are green on the release commit.
 2. Base only: set `.mb/base-version.json` to the new tag in the release commit (the release workflow fails if they differ), and add the release to [CHANGELOG.md](CHANGELOG.md) with any "Migration" notes.
 3. Attach both-host eval results for the tagged commit (`./mb eval --host all`). Required for base releases; a derived marketplace without eval keys may write "evals not run" in its release notes.
-4. Tag `vX.Y.Z` and push the tag.
+4. Tag `vX.Y.Z` and push the tag. Confirm it is public: `git ls-remote --tags <repo-url>` lists `refs/tags/vX.Y.Z`. Until a tag exists, `./mb test --derive` is skipped (with a `::warning::` in GitHub Actions).

@@ -1,4 +1,4 @@
-// tools/lib/evals/codex.mjs: the Codex runner (SPEC §15.3). Codex has no eval command, so this runs
+// tools/lib/evals/codex.mjs: the Codex runner. Codex has no eval command, so this runs
 // each native case with `codex exec --json` and grades the result with graders.mjs.
 //
 // Isolation: every case gets a temp CODEX_HOME. Locally, auth.json is COPIED from the real CODEX_HOME
@@ -17,7 +17,7 @@ export function realCodexHome(env = process.env) {
 
 export const isCi = (env = process.env) => !!env.CI && env.CI !== 'false' && env.CI !== '0';
 
-/** Exact `codex exec` argv (§15.3), without the leading "codex". */
+/** Exact `codex exec` argv, without the leading "codex". */
 export function buildExecArgs({ workdir, lastFile, model, prompt }) {
   const a = ['exec', '--json', '-s', 'workspace-write', '--ephemeral', '-C', workdir, '-o', lastFile];
   if (model) a.push('-m', model);
@@ -77,7 +77,7 @@ export async function prepareHome({ home, root, mkt, plugin, auth, env, exec }) 
 }
 
 /**
- * Run the given cases of one plugin. Returns the §15.3 JSON:
+ * Run the given cases of one plugin. Returns the runner JSON:
  * { host: 'codex', plugin, threshold, cases: [{ name, score, passed, allSkipped, runs: [{ score, graders: [...] }] }] }
  * o: { root, mkt, plugin, cases (loadCase results), runs, threshold, model, scaffold, judge, auth,
  *      env, exec, tmpRoot, log(text), keep }
@@ -88,6 +88,7 @@ export async function runCodexPlugin(o) {
   const log = o.log ?? (() => {});
   const tmp = fs.mkdtempSync(path.join(o.tmpRoot ?? os.tmpdir(), 'mb-eval-codex-'));
   const result = { host: 'codex', plugin: o.plugin, threshold: o.threshold, cases: [] };
+  if (o.keep) result.keptDir = tmp; // `mb eval --keep-temp`: workdirs, last-<n>.txt and CODEX_HOME stay
   try {
     for (const [ci, c] of o.cases.entries()) {
       const caseTmp = path.join(tmp, `case-${ci}`);
@@ -116,12 +117,12 @@ export async function runCodexPlugin(o) {
           : !events.some((e) => e.type === 'turn.completed') ? 'no turn.completed event' : null;
         if (error) {
           log(`codex: ${c.name} run ${r + 1}: ${error}: ${(x.stderr || '').trim().slice(-300)}\n`);
-          runResults.push({ score: 0, exitCode: x.code, error, graders: [] });
+          runResults.push({ score: 0, exitCode: x.code, error, graders: [], lastMessage });
           continue;
         }
         const run = { events, trace: x.stdout, lastMessage, filesBefore, filesAfter: listFiles(work) };
         const graders = await gradeRun(c.graders, run, { judge: o.judge });
-        runResults.push({ score: scoreRun(graders, c.graders), exitCode: x.code, graders });
+        runResults.push({ score: scoreRun(graders, c.graders), exitCode: x.code, graders, lastMessage });
       }
       const s = scoreCase(runResults.map((x) => x.score), o.threshold);
       result.cases.push({ name: c.name, score: s.score, passed: s.passed, allSkipped: s.allSkipped, runs: runResults });

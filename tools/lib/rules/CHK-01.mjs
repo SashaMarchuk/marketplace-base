@@ -1,4 +1,4 @@
-// CHK-01: mb-owned JSON parses with the strict parser's default mode (SPEC section 12).
+// CHK-01: mb-owned JSON parses with the strict parser's default mode.
 import { parse } from '../../kit/json.mjs';
 
 export const id = 'CHK-01';

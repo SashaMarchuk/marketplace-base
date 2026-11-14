@@ -1,17 +1,18 @@
-// tools/lib/lock.mjs: `.mb-lock.json` and the pure parts of `mb init` / `mb base-update` (SPEC §14).
+// tools/lib/lock.mjs: `.mb-lock.json` and the pure parts of `mb init` / `mb base-update`.
 //
 // API:
 //   readLock(root) -> lock             strict parse + lock.schema.json; throws exitCode 3 when invalid
 //   writeLock(root, { base, files, adopted }) writes canonical pretty JSON (sorted keys, lockVersion 1)
-//   SELF_PATHS, isSelfPath(rel)        the permanent B paths checked out first by base-update (§14.3)
+//   SELF_PATHS, isSelfPath(rel)        the permanent B paths checked out first by base-update
 //   parseTag(tag) / compareTags(a, b) / isStableTag(tag) / highestStableTag(tags)   semver helpers
 //   tagsFromLsRemote(stdout) -> [tag]  names of refs/tags/v* in `git ls-remote --tags` output
 //   exampleOf(rel) -> <p> | null       plugin name of an `examples/plugins/<p>/...` path
 //   exampleIncluded(includeExamples, p)  true | false | [names]; missing means true
 //   repoFiles(root) -> [rel]           tracked + untracked-not-ignored files (git), else a plain walk
 //   requireGitRoot(root, fail)         refuses a root that is not the top level of its own git repo
-//   decide(input) -> { row, action, lockHash }   the §14.3 decision table, one path at a time
+//   decide(input) -> { row, action, lockHash }   the base-update decision table, one path at a time
 //   ROWS                               human text of each table row (used by the --dry-run plan)
+//   baseUrlOf(root, lock) -> url       marketplace.config.json#base.url, else the lock's base.url
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -53,7 +54,22 @@ export function writeLock(root, { base, files, adopted }) {
   });
 }
 
-// Permanent B paths (SPEC §14.3 SELF). base-update checks them out BEFORE the decision table so
+/**
+ * The base URL to update from: `base.url` in marketplace.config.json (the user-editable place, so a
+ * fork or mirror is one config edit), falling back to the copy in the lock. base-update records the
+ * URL it used in the lock.
+ */
+export function baseUrlOf(root, lock) {
+  try {
+    const url = parse(fs.readFileSync(path.join(root, 'marketplace.config.json')))?.base?.url;
+    if (typeof url === 'string' && url) return url;
+  } catch (e) {
+    if (e.code !== 'ENOENT' && e.name !== 'JsonError') throw e;
+  }
+  return lock.base.url;
+}
+
+// Permanent B paths. base-update checks them out BEFORE the decision table so
 // that the rest of the update runs with the new tooling; they therefore get the strict guard.
 export const SELF_PATHS = Object.freeze(['tools', '.mb/ownership.json', '.mb/base-version.json', '.mb/migrations', 'mb', 'mb.cmd']);
 
@@ -94,7 +110,7 @@ export function compareTags(a, b) {
   return 0;
 }
 
-/** Highest stable tag; pre-release tags (v1.3.0-rc.1) are never "latest" (SPEC §14.3). */
+/** Highest stable tag; pre-release tags (v1.3.0-rc.1) are never "latest". */
 export function highestStableTag(tags) {
   let best = null;
   for (const t of tags) if (isStableTag(t) && (best === null || compareTags(t, best) > 0)) best = t;
@@ -166,7 +182,7 @@ export const ROWS = Object.freeze({
 });
 
 /**
- * SPEC §14.3 decision table for ONE path (first matching row wins).
+ * base-update decision table for ONE path (first matching row wins).
  * input: { skipExample, workflowHeld, N, T, L, C, force }
  *   N: hash of <commit>:f when f is B/E under the new ownership, else null
  *   T: f exists in the <commit> tree (any class)

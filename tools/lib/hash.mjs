@@ -2,7 +2,7 @@
 //
 // sha256(data)        hex sha256 of a string (UTF-8) or bytes.
 // sha8(data)          first 8 hex chars of sha256(data).
-// lockHash(bytes)     the SPEC §2 hash rule for .mb-lock.json and drift checks: sha256 of the file
+// lockHash(bytes)     the hash rule for .mb-lock.json and drift checks: sha256 of the file
 //                     bytes after every G-marker body has been emptied (see markers.mjs). Applied to
 //                     every file, whatever its name; works on raw bytes (latin1 round-trip), so
 //                     binary and non-UTF-8 files hash losslessly.

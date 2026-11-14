@@ -1,8 +1,8 @@
-// tools/lib/evals/graders.mjs: load native eval cases and grade Codex runs (SPEC §15.1, §15.3).
+// tools/lib/evals/graders.mjs: load native eval cases and grade Codex runs.
 //
 // The Codex runner reads the same files as `claude plugin eval`. This module is pure: it gets the
 // parsed `codex exec --json` stream, last.txt and the workdir file lists, and returns grader results.
-// Mapping (§15.3):
+// Mapping:
 //   regex (target last_message)  -> last.txt          regex (target trace) -> the JSONL stream
 //   file_exists                  -> workdir file list after the run (the before list is kept for reports)
 //   tool_used Skill              -> command_execution items that read .../skills/<s>/SKILL.md (recorded streams in tools/tests/fixtures/evals/codex)

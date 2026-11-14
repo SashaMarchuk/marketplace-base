@@ -1,5 +1,5 @@
 ---
-description: The {{plugin}} plugin reads its configuration (resolver runs) and follows the project setting.
+description: The {{plugin}} plugin follows the project setting written by scaffold.sh (graders/config-effect.md checks its effect).
 max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill, Bash]
 ---

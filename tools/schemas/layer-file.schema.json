@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "layer-file.schema.json",
   "title": "marketplace-base config layer file",
-  "description": "Shape of every config layer (SPEC 6.2). Closed levels: top, plugins.<p>, enforced, enforced.plugins.<p>. Contents of every settings object are free-form. Which layer may use enforced/team/merge, and the config-text lexical rules (integer-only numbers, key syntax, no BOM, no lone surrogates, no __proto__/constructor/prototype, no duplicate keys), are enforced by the parser and the resolver, not by this schema.",
+  "description": "Shape of every config layer. Closed levels: top, plugins.<p>, enforced, enforced.plugins.<p>. Contents of every settings object are free-form. Which layer may use enforced/team/merge, and the config-text lexical rules (integer-only numbers, key syntax, no BOM, no lone surrogates, no __proto__/constructor/prototype, no duplicate keys), are enforced by the parser and the resolver, not by this schema.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -60,7 +60,7 @@
     "pluginName": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "maxLength": 64 },
     "accessPattern": { "type": "string", "pattern": "^[a-z0-9*][a-z0-9*-]{0,63}$" },
     "settings": {
-      "description": "Free-form settings object. Keys must match ^[A-Za-z0-9_-]{1,64}$ at every depth (checked by the parser).",
+      "description": "Free-form settings object. Keys must match ^[A-Za-z0-9_:-]{1,64}$ at every depth (checked by the parser).",
       "type": "object"
     }
   }

@@ -42,7 +42,7 @@ test('only CHK-18/19/24 are slow (skipped by --fast)', async () => {
   assert.deepEqual(slow, ['CHK-18', 'CHK-19', 'CHK-24']);
 });
 
-test('mb check --json matches the section 11 shape and exits 1 on errors', async () => {
+test('mb check --json matches the documented JSON shape and exits 1 on errors', async () => {
   const root = makeRepo({ 'plugins/demo/plugin.src.json': '{"name":"demo","name":"demo"}' });
   const { code, out } = await mb(root, ['check', '--json', '--fast', '--offline']);
   assert.equal(code, 1);
@@ -72,4 +72,17 @@ test('frontmatter parser: scalars, quotes, lists, folded blocks', () => {
   assert.equal(error, null);
   assert.deepEqual(data, { a: "it's", b: 'x\ty', c: ['Read', 'Grep'], d: ['one', 'two'], e: 'long text', f: 0, g: true });
   assert.ok(fs.existsSync(TOOL_ROOT));
+});
+
+test('mb check human output collapses stale generated files into one CHK-10 line, printed first', async () => {
+  const root = makeRepo();
+  assert.equal((await mb(root, ['gen'])).code, 0);
+  for (const rel of ['plugins/demo/.claude-plugin/plugin.json', 'plugins/demo/.codex-plugin/plugin.json']) write(root, rel, '{}\n');
+  const human = await mb(root, ['check', '--fast', '--offline']);
+  assert.equal(human.code, 1);
+  const lines = human.out.split('\n').filter((l) => /^(ERROR|WARNING|INFO)/.test(l));
+  assert.equal(lines.filter((l) => l.includes('CHK-10')).length, 1);
+  assert.match(lines[0], /^ERROR {3}CHK-10 \.: 2 generated file\(s\) out of date \(plugins\/demo\/\.claude-plugin\/plugin\.json, /);
+  const json = JSON.parse((await mb(root, ['check', '--json', '--fast', '--offline'])).out);
+  assert.equal(json.results.filter((r) => r.id === 'CHK-10').length, 2, '--json keeps one result per file');
 });

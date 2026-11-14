@@ -1,4 +1,4 @@
-// CHK-20: leak scan (SPEC section 12).
+// CHK-20: leak scan.
 // 1. Built-in secret patterns over every repo file (tracked + untracked, not ignored).
 // 2. Home-path patterns over spikes/**, tools/tests/fixtures/** and dist/evals/** (captured host output;
 //    dist/ is gitignored, so dist/evals is only seen when mb-evals.yml runs this rule over it).

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "lock.schema.json",
-  "title": ".mb-lock.json (SPEC section 14.2)",
+  "title": ".mb-lock.json",
   "type": "object",
   "additionalProperties": false,
   "required": ["adopted", "base", "files", "lockVersion"],

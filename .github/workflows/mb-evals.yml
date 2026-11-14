@@ -1,4 +1,4 @@
-# mb-evals (base-owned; SPEC section 15.4). Live evals on Claude Code and Codex.
+# mb-evals (base-owned). Live evals on Claude Code and Codex.
 # Triggers: manual dispatch and nightly on the default branch. There is deliberately NO pull_request
 # trigger (so no secret is ever exposed to a PR-triggered run) and never pull_request_target. To
 # evaluate a PR, run this workflow from the Actions tab on the PR branch with "changed-only" set:

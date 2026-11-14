@@ -1,4 +1,4 @@
-# mb-release (base-owned; SPEC section 16). On a v* tag: check, policy emit for both hosts, and a
+# mb-release (base-owned). On a v* tag: check, policy emit for both hosts, and a
 # GitHub release with the outputs + SHA256SUMS (policy emit is skipped when marketplace.config.json
 # has no `distribution`). In the base repo (no .mb-lock.json) it first fails
 # unless .mb/base-version.json equals the tag; derived repos skip that assertion.
@@ -70,7 +70,7 @@ jobs:
         run: ./mb check
       - name: ./mb policy emit (both hosts)
         run: |
-          # policy emit needs `distribution` (the marketplace's GitHub repo); without it, skip (ORCH O9).
+          # policy emit needs `distribution` (the marketplace's GitHub repo); without it, skip.
           if ! node -e 'process.exit(JSON.parse(require("fs").readFileSync("marketplace.config.json", "utf8")).distribution ? 0 : 1)'; then
             echo "::notice::policy emit skipped: marketplace.config.json has no distribution"
             exit 0

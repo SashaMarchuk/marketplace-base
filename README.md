@@ -66,7 +66,9 @@ Then ask your agent something like "add a changelog entry for this fix". See [US
 
 4. Commit and push. Later, pull base improvements with `./mb base-update`.
 
-`init` keeps the examples by default (`--examples none` removes them). Details: [docs/base/derive-update.md](docs/base/derive-update.md).
+`init` keeps the examples by default (`--examples none` removes them). Examples stay under `examples/plugins/`, which `./mb base-update` overwrites: run `./mb adopt <p>` **before** you edit one (it moves it to `plugins/<p>`, which is yours). To drop an example, adopt it and delete `plugins/<p>`, or remove it from `includeExamples` in `marketplace.config.json` and delete its folder. Details: [docs/base/derive-update.md](docs/base/derive-update.md).
+
+Moving an existing marketplace onto the base? See [docs/base/migrating.md](docs/base/migrating.md).
 
 ## Learn more
 
@@ -79,6 +81,7 @@ Then ask your agent something like "add a changelog entry for this fix". See [US
 | Push policy to managed machines | [docs/base/policy.md](docs/base/policy.md) |
 | Test skills on both hosts | [docs/base/evals.md](docs/base/evals.md) |
 | Derive a marketplace and pull updates | [docs/base/derive-update.md](docs/base/derive-update.md) |
+| Move an existing marketplace onto the base | [docs/base/migrating.md](docs/base/migrating.md) |
 | Set up GitHub on a free or paid plan | [docs/base/github.md](docs/base/github.md) |
 | Check what each host is verified to support | [docs/base/hosts.md](docs/base/hosts.md) |
 | See every `mb check` rule | [docs/base/rules.md](docs/base/rules.md) |

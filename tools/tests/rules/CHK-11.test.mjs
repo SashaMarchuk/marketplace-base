@@ -21,3 +21,10 @@ test('CHK-11 fails: schema outside the subset, and defaults that do not validate
   r = errors(await runRule('CHK-11', makeRepo({ 'plugins/demo/config.defaults.json': '{"maxItems":99}', 'plugins/demo/config.schema.json': SCHEMA })));
   assert.match(r[0].message, /does not match config.schema.json at \/maxItems/);
 });
+
+test('CHK-11 warns: a top-level setting named "merge" is reserved', async () => {
+  const schema = JSON.stringify({ type: 'object', properties: { merge: { type: 'boolean' } } });
+  const r = await runRule('CHK-11', makeRepo({ 'plugins/demo/config.defaults.json': '{"merge":true}', 'plugins/demo/config.schema.json': schema }));
+  assert.deepEqual(r.map((x) => x.severity), ['warning', 'warning']);
+  assert.ok(r.every((x) => /reserved/.test(x.message)));
+});

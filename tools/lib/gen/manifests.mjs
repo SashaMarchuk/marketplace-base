@@ -1,4 +1,4 @@
-// tools/lib/gen/manifests.mjs: per-plugin host manifests (SPEC §4.1, §4.2).
+// tools/lib/gen/manifests.mjs: per-plugin host manifests.
 // Both hosts get the same key set: {author, description, homepage?, keywords?, license?, name,
 // repository?, version}. Optional source fields are omitted when absent. `author` defaults to the
 // marketplace owner. Codex `interface`/`skills` are not emitted in v1.

@@ -1,13 +1,16 @@
-// CHK-12: policy files (SPEC sections 6.2, 7.3, 12). policy/org.json and policy/teams/*.json must be
+// CHK-12: policy files. policy/org.json and policy/teams/*.json must be
 // valid POLICY layers: config-text parse, closed shape levels (layer-file schema), valid access, no
 // null under `enforced`. Enforced values must validate against each target plugin's schema, and a
 // team's enforced value must not conflict with the org's (ENFORCED_CONFLICT is an error in CI).
+// an INFO when a plugin in this repo matches an org `access.deny` entry (often intended,
+// so never a warning; it just makes the block visible before release).
 import { parse, same } from '../../kit/json.mjs';
 import { validate, loadSchema } from '../schema-lite.mjs';
+import { globMatch } from '../policy/decide.mjs';
 
 export const id = 'CHK-12';
 export const severity = 'error';
-export const title = '`policy/*.json` valid as POLICY layers (tier-a parser, 6.2 config-text rules, closed shape levels); enforced values validate against the target plugin schemas; team-vs-org enforced conflict';
+export const title = '`policy/*.json` valid as POLICY layers (tier-a parser, config-text rules, closed shape levels); enforced values validate against the target plugin schemas; team-vs-org enforced conflict';
 export const fix = 'fix policy file';
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -128,8 +131,17 @@ export function run(rctx) {
     }
   }
 
-  // Team-vs-org conflicts, per plugin (plus the shared settings alone).
+  // Plugins the org denies (info only).
   const org = docs.get('policy/org.json');
+  const deny = Array.isArray(org?.access?.deny) ? org.access.deny.filter((d) => typeof d === 'string') : [];
+  for (const p of rctx.plugins) {
+    const hit = deny.find((d) => globMatch(d, p.name));
+    if (hit !== undefined) {
+      out.push({ path: 'policy/org.json', severity: 'info', message: `plugin ${p.name} matches org access.deny "${hit}" (blocked by org policy)`, fix: 'nothing to do if intended; otherwise edit access.deny in policy/org.json' });
+    }
+  }
+
+  // Team-vs-org conflicts, per plugin (plus the shared settings alone).
   if (org) {
     for (const [rel, team] of docs) {
       if (!rel.startsWith('policy/teams/')) continue;

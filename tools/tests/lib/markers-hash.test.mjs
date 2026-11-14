@@ -102,12 +102,12 @@ test('sha256 / sha8 / sha256Concat / hashFile', () => {
   }
 });
 
-test('.gitattributes is the SPEC §2 literal', () => {
+test('.gitattributes is the expected literal', () => {
   assert.equal(fs.readFileSync(path.join(ROOT, '.gitattributes'), 'utf8'),
     '* text=auto eol=lf\n**/_mb/** linguist-generated -diff\n');
 });
 
-test('.gitignore seed carries exactly one gitignore marker with the §2 entries', () => {
+test('.gitignore seed carries exactly one gitignore marker with the expected entries', () => {
   const text = fs.readFileSync(path.join(ROOT, '.gitignore'), 'utf8');
   assert.deepEqual(findMarkers(text).problems, []);
   const body = getMarkerBody(text, 'gitignore');

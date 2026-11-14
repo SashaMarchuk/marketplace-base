@@ -1,7 +1,9 @@
-// CHK-14: eval coverage (SPEC sections 15.1, 12). Each skill has >= 1 trigger case (a grader with
+// CHK-14: eval coverage. Each skill has >= 1 trigger case (a grader with
 // type tool_used, tool Skill, an input_match naming the skill, min absent or >= 1) and >= 1
 // no-trigger case (same grader with min 0, max 0, arm both). Every prompt.md frontmatter key is in
-// the native `claude plugin eval` set (an unknown key fails the native runner).
+// the native `claude plugin eval` set (an unknown key fails the native runner). Every grader has a
+// native `type` and that type's key option (an unknown type would be SKIPPED, a regex without a
+// pattern would match anything).
 import { walk } from '../fsx.mjs';
 
 export const id = 'CHK-14';
@@ -10,6 +12,9 @@ export const title = 'Each skill has >= 1 trigger case (`tool_used`, `tool: Skil
 export const fix = './mb new skill scaffolds both';
 
 const PROMPT_KEYS = new Set(['name', 'description', 'tags', 'plugins', 'runs', 'expected_outcome', 'model', 'max_turns', 'timeout_seconds', 'allowed_tools', 'append_system_prompt', 'env']);
+// Native grader types and the option each one cannot do without (docs/base/evals.md#graders).
+const GRADER_TYPES = { regex: 'pattern', tool_used: 'tool', tool_order: null, file_exists: 'path', llm: null, baseline: null };
+const GRADER_FIX = 'see docs/base/evals.md#graders';
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 function names(grader, skill) {
@@ -41,8 +46,22 @@ export function run(rctx) {
         }
       }
       for (const f of files.filter((x) => x.startsWith(`${c}/graders/`) && x.endsWith('.md'))) {
-        const g = rctx.frontmatter(rctx.readText(`${evalsDir}/${f}`));
-        if (g.data) graders.push({ caseName: c, data: g.data });
+        const gpath = `${evalsDir}/${f}`;
+        const g = rctx.frontmatter(rctx.readText(gpath));
+        if (!g.data) {
+          out.push({ path: gpath, message: `grader has no valid frontmatter${g.error ? ` (${g.error})` : ''}`, fix: GRADER_FIX });
+          continue;
+        }
+        graders.push({ caseName: c, data: g.data });
+        const type = g.data.type;
+        if (typeof type !== 'string' || !Object.hasOwn(GRADER_TYPES, type)) {
+          out.push({ path: gpath, message: `grader type ${type === undefined ? 'is missing' : `"${type}" is not a native type`} (${Object.keys(GRADER_TYPES).join(', ')})`, fix: GRADER_FIX });
+          continue;
+        }
+        const need = GRADER_TYPES[type];
+        if (need && (g.data[need] === undefined || g.data[need] === '')) {
+          out.push({ path: gpath, message: `${type} grader has no "${need}"`, fix: GRADER_FIX });
+        }
       }
     }
     for (const s of rctx.skills(p)) {

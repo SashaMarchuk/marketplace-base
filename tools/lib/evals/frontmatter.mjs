@@ -1,4 +1,4 @@
-// tools/lib/evals/frontmatter.mjs: a small YAML-subset reader for eval files (SPEC §15.1).
+// tools/lib/evals/frontmatter.mjs: a small YAML-subset reader for eval files.
 // It reads `prompt.md` and `graders/*.md` frontmatter and whole `case.yaml` files.
 //
 // Supported: block maps (any depth, by indentation), block lists (`- x`), flow lists (`[a, b]`),
