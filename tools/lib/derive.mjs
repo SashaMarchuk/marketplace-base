@@ -12,7 +12,9 @@
 //   deriveTemplateCopy(bareUrl, tag, dir, env)   "Use this template": the tag's files, fresh history
 //   scriptedEdits(dir, env)           derive-proof D/S edits (plugin, README text, policy, workflow, adopt)
 //   snapshotDS(dir) -> Map rel -> hash   D and S files (hash rule) of a derived repo
-//   deriveProof({ root, stdout, stderr }) -> exit code   the derive proof against the base repo at `root`
+//   deriveProof({ root, stdout, stderr }) -> exit code   the derive proof against the base repo at `root`;
+//                                     per earlier tag: init, edits, base-update, then the derived repo's own
+//                                     `./mb check` and `./mb test`, and the two conflict cases
 //
 // The proof only READS the base repo at `root` (git clone --bare of its HEAD and tags); every write
 // happens in a temp dir, which is removed afterwards (set MB_KEEP_TMP=1 to keep it).
@@ -228,6 +230,19 @@ export async function deriveProof({ root, stdout = (t) => process.stdout.write(t
       const removed = Object.keys(oldLock.files).filter((f) => !targetTree.has(f));
       const lingering = removed.filter((f) => fs.existsSync(path.join(dir, ...f.split('/'))));
       step(lingering.length === 0, `${from}: ${removed.length} base file(s) removed upstream are gone${lingering.length ? '; still present: ' + lingering.join(', ') : ''}`);
+
+      // The derived repo's own CI commands (mb-check.yml) pass with the updated tooling. Run after the
+      // update, not after init: at init the copy still holds the old tag's tests.
+      // The unit tests also run shell scripts (hooks, workflow steps, eval scaffolds): add the dirs of the
+      // shells and the basic utilities they call (still no claude/codex/gitleaks dirs unless they share one).
+      const shellDirs = ['sh', 'bash', 'env', 'cat', 'chmod', 'mktemp', 'grep', 'sed', 'rm'].map(findOnPath);
+      const ciEnv = { ...env, PATH: [...new Set([env.PATH, ...shellDirs].filter(Boolean))].join(path.delimiter) };
+      for (const args of [['check'], ['test']]) {
+        const r = mbIn(dir, args, ciEnv);
+        const text = r.stdout + r.stderr;
+        const failing = text.split('\n').filter((l) => /^(not ok|ERROR|FAIL)\b/.test(l.trim())).join('\n');
+        step(r.code === 0, `${from}: derived ./mb ${args[0]} after the update (exit ${r.code})${r.code ? '\n' + failing + '\n' + text.slice(-2000) : ''}`);
+      }
 
       // Step 6: an edited B file is a conflict (exit 6).
       const targetOwn = compileOwnership(JSON.parse(gitIn(bare, ['show', `${target}:.mb/ownership.json`], env)));

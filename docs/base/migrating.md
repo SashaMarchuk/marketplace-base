@@ -19,12 +19,12 @@ How to move an existing plugin marketplace (hand-written manifests, commands, ag
 | Hand-written marketplace file | nothing (generated) | A per-plugin category becomes `category` in `plugin.src.json`. |
 | `SKILL.md` | `plugins/<p>/skills/<s>/SKILL.md` | Frontmatter: the portable Agent Skills keys; known Claude Code-only keys (`user-invocable`, `disable-model-invocation`, `allowed-tools`, `argument-hint`, `model`) get a warning; anything else is an error. |
 | A hidden skill that commands call | same, with `user-invocable: false` | Accepted with the warning "host-specific (ignored by Codex)". Claude Code hides it from the slash menu; Codex still lists it. Keep the commands in `commands/`. |
-| `references/`, `scripts/`, `assets/` at the plugin root | `plugins/<p>/skills/<s>/references/` (and `scripts/`, `assets/`) | A plain-folder export copies only the skill folder. Move these folders together so relative paths between them keep working. |
+| `references/`, `scripts/`, `assets/` at the plugin root | `plugins/<p>/skills/<s>/references/` (and `scripts/`, `assets/`) | A plain-folder export copies only the skill folder. Move these folders together so relative paths between them keep working. Scripts that find the plugin root from their own location (`scripts/..`, or a search for `.claude-plugin/plugin.json`) now get the skill folder: a guard meant to cover the whole plugin covers only the skill, and a manifest lookup finds nothing. `mb check` cannot see this; review such scripts by hand. |
 | `${CLAUDE_PLUGIN_ROOT}` or other host variables in skills | `<skill-dir>/...` | The model sees the skill's absolute directory. Run scripts as `node <skill-dir>/scripts/x.mjs` or `sh <skill-dir>/scripts/x.sh`. |
 | `commands/`, `agents/`, `hooks/`, MCP config | same folders in `plugins/<p>/` | Kept; `mb check` warns that they are host-specific (CHK-09). A plain-folder export drops them without a warning, so a skill that hands work to an agent does not work from a plain folder. Say so in the plugin README. |
 | Your own config resolver and config files | `config.defaults.json` plus the layers ([config.md](config.md)) | Mapping below. Or keep your resolver as plain plugin files; the plugin is then not "configurable" for `mb`. |
 | Advice or recommendation files (hints, not values) | `skills/<s>/references/` | Config holds values only; there is no advice slot. The skill reads the file as data. |
-| Static data or schema files | `skills/<s>/assets/` or `references/` | Plain files; config key rules do not apply to them. |
+| A plugin-root data folder (static data, schemas), for example `config/` | `skills/<s>/config/`: move the folder whole and keep its name | Every mention (`config/...` in prose, `new URL('../config/...')` in scripts) keeps working. Renaming it to `assets/` or `references/` breaks those paths, and `mb check` stays green: CHK-06 only checks paths that start with `scripts/`, `references/` or `assets/`. Config key rules do not apply to these files. |
 | Helper scripts shared by several plugins | your own sync script | See [Shared files](#shared-files). |
 | Third-party notices and licenses | inside the skill folder | A plain-folder export copies only the skill folder. |
 | Root `CLAUDE.md`, `CONTRIBUTING.md`, `.gitattributes` | `AGENTS.md` (outside the generated block) or `docs/` | These paths are owned by the base and replaced on update. |
@@ -62,6 +62,7 @@ The merge is RFC 7386 merge patch: objects merge key by key, arrays and scalars 
 ## Tests
 
 - `*.test.mjs` files under `plugins/<p>/tests/` run with `./mb test` (Node.js `node:test`, no dependencies), so CI runs them too.
+- Tests anywhere else, including tests kept next to their scripts (they end up under `skills/<s>/scripts/` after the move), are not run. Move them to `plugins/<p>/tests/`, then fix their relative imports, data-file URLs and any constant that names their own folder.
 - Other harnesses (shell, Python, mutation tests) run from your own workflow.
 - Tests that pin file paths or document structure need updating for the new layout (skill-relative paths, generated manifests).
 

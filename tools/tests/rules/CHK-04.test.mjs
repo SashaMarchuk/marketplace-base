@@ -57,3 +57,8 @@ test('CHK-04 warns (does not fail) on known host-only keys', async () => {
     'frontmatter key "user-invocable" is host-specific (ignored by Codex)',
   ]);
 });
+
+test('CHK-04 ignores TODO inside inline code spans and fenced blocks', async () => {
+  const body = '\nReplace each `TODO` placeholder in the draft.\n\n```\nTODO: example output\n```\n';
+  assert.deepEqual(await runRule('CHK-04', makeRepo({ [REL]: SKILL_MD + body })), []);
+});

@@ -9,7 +9,7 @@ claude plugin install alpha@acme
 
 ```sh
 codex plugin marketplace add acme/skills
-codex plugin add alpha@acme
+codex plugin add beta@acme
 ```
 
 **Plain skills folder** (from a clone of this repo)

@@ -243,6 +243,10 @@ async function phaseOne(ctx, root, lock, flags, statePath) {
     return 0;
   }
 
+  // Tooling files the new tag ADDS have no lock entry, so `pre` lacks them; after the checkout below the
+  // child would read their new bytes as current and report "up to date". Record their pre-checkout state
+  // (null = absent) so the report lists them as changed, as the dry run does.
+  for (const p of tree.keys()) if (isSelfPath(p) && !Object.hasOwn(pre, p)) pre[p] = currentHash(root, p);
   fs.writeFileSync(statePath, JSON.stringify({ tag, commit, pre }) + '\n');
   const pathspecs = SELF_PATHS.filter((s) => [...tree.keys()].some((p) => p === s || p.startsWith(s + '/')));
   git(['checkout', commit, '--', ...pathspecs], { cwd: root });

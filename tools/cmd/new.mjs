@@ -229,6 +229,10 @@ async function newEvals(ctx, rest, v) {
   }
   ctx.stdout(`new evals ${p}/${s}\n`);
   writePlan(ctx.root, plan, ctx);
+  // gen first, as in `new skill`: a migrated skill that was never generated would otherwise show
+  // every stale generated file as a check error.
+  const genCode = await runIfPresent(ctx, 'gen', []);
+  if (genCode) return genCode;
   const checkCode = await runIfPresent(ctx, 'check', [p]);
   if (checkCode) return checkCode;
   ctx.stdout(`\nnext: write the prompts in ${plugin.rel}/evals/${s}-trigger/prompt.md and ${plugin.rel}/evals/${s}-no-trigger/prompt.md\n`);

@@ -7,7 +7,7 @@ import path from 'node:path';
 export const id = 'CHK-06';
 export const severity = 'error';
 export const title = 'SKILL.md <= 500 lines; every relative markdown link target, and every backticked path starting with `scripts/`, `references/` or `assets/`, exists inside the skill dir';
-export const fix = 'move detail to references/';
+export const fix = 'too long: move detail to references/; missing target: create it or fix the path';
 
 const LINK_RE = /\[[^\]]*\]\(\s*<?([^)\s>]+)>?(?:\s+["'][^)]*["'])?\s*\)/g;
 const TICK_RE = /`((?:scripts|references|assets)\/[^`\s]*)`/g;
@@ -29,7 +29,7 @@ export function run(rctx) {
       if (!rctx.exists(rel)) continue; // CHK-04
       const text = rctx.readText(rel);
       const lines = text.split('\n').length - (text.endsWith('\n') ? 1 : 0);
-      if (lines > 500) out.push({ path: rel, message: `SKILL.md has ${lines} lines (max 500)` });
+      if (lines > 500) out.push({ path: rel, message: `SKILL.md has ${lines} lines (max 500)`, fix: 'move detail to references/' });
       const body = stripFences(text);
       const targets = [];
       for (const m of body.replace(/`[^`\n]*`/g, '').matchAll(LINK_RE)) {
@@ -46,7 +46,7 @@ export function run(rctx) {
         if (target !== dir && !target.startsWith(dir + '/')) {
           out.push({ path: rel, message: `link "${t}" points outside the skill dir`, fix: 'copy the file into the skill dir' });
         } else if (!rctx.exists(target)) {
-          out.push({ path: rel, message: `link "${t}" does not exist in the skill dir` });
+          out.push({ path: rel, message: `link "${t}" does not exist in the skill dir`, fix: `create ${clean} in the skill dir, or fix the path (it is relative to the skill dir)` });
         }
       }
     }

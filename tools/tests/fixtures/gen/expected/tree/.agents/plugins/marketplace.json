@@ -9,7 +9,7 @@
       "name": "alpha",
       "policy": {
         "authentication": "ON_INSTALL",
-        "installation": "AVAILABLE"
+        "installation": "NOT_AVAILABLE"
       },
       "source": {
         "path": "./plugins/alpha",

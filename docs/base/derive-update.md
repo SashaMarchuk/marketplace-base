@@ -32,7 +32,19 @@ Use either of these, then run `./mb gen` and commit:
 - `./mb adopt <p> && rm -rf plugins/<p>`. The example becomes yours and is then deleted. Base updates skip adopted examples.
 - Remove `<p>` from `includeExamples` in `marketplace.config.json` (or set it to `false`), then `rm -rf examples/plugins/<p>`. `./mb init --force --name <mkt> --display <s> --owner <name> --examples <the ones to keep>` does both for you, and does not touch your other seed files.
 
-Either way, `./mb check` (CHK-16) stays green and `base-update` never brings the example back.
+Either way, `./mb check` (CHK-16) stays green and `base-update` does not bring the example back on its own.
+
+With the second route, `.mb-lock.json` keeps the entries of the deleted example until the next `init --force` or `base-update` rewrites the lock. They are harmless: check and update stay green.
+
+### Bring a dropped example back
+
+`init --force --examples <p>` cannot restore it once the folder is gone (it lists only the examples still present), and `base-update` alone reports the missing files as conflicts when the lock still lists them. Copy the files back from your base tag instead (the tag in `.mb-lock.json`, from `base.url`):
+
+1. Add `<p>` to `includeExamples` in `marketplace.config.json` (`false` becomes `["<p>"]`; `true` already includes it).
+2. `git fetch <base.url> refs/tags/<tag> && git checkout FETCH_HEAD -- examples/plugins/<p>`, then `./mb gen` and commit.
+3. Run `./mb base-update --to <tag>`. It reports 0 conflicts and records the example's files in the lock, which turns `./mb check` (CHK-16) green again. Commit.
+
+An example you adopted and then deleted stays yours, and base updates skip it: restore `plugins/<p>` from your own git history (`git checkout <commit-before-the-delete> -- plugins/<p>`), then `./mb gen`.
 
 ## 3. Who owns what
 

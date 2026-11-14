@@ -111,7 +111,9 @@ test('.gitignore seed carries exactly one gitignore marker with the expected ent
   const text = fs.readFileSync(path.join(ROOT, '.gitignore'), 'utf8');
   assert.deepEqual(findMarkers(text).problems, []);
   const body = getMarkerBody(text, 'gitignore');
-  for (const line of ['.mb/leak-denylist.txt', '.marketplace-base/config.local.json', 'dist/']) {
+  // The config dir is named after the marketplace, so derived repos (after `mb init --name`) pass too.
+  const { name } = JSON.parse(fs.readFileSync(path.join(ROOT, 'marketplace.config.json'), 'utf8'));
+  for (const line of ['.mb/leak-denylist.txt', `.${name}/config.local.json`, 'dist/']) {
     assert.ok(body.split('\n').includes(line), line);
   }
 });

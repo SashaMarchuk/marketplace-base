@@ -3,5 +3,6 @@
   "version": "1.2.3",
   "description": "Alpha plugin. Has two configurable skills.",
   "keywords": ["alpha", "demo"],
-  "license": "MIT"
+  "license": "MIT",
+  "codex": { "policy": { "installation": "NOT_AVAILABLE" } }
 }

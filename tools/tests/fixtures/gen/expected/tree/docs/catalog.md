@@ -17,7 +17,7 @@ Alpha plugin. Has two configurable skills.
 | Host-specific components | - |
 | Org policy | required |
 | Install (Claude Code) | `claude plugin install alpha@acme` |
-| Install (Codex) | `codex plugin add alpha@acme` |
+| Install (Codex) | not available (Claude Code only) |
 
 ### Skills
 

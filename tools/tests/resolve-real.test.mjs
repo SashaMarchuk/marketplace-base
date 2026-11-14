@@ -272,6 +272,61 @@ test('write denied on a read-only dir: exit 3 WRITE_DENIED', { skip: (WIN || ROO
   assert.equal(r.code, 3);
   assert.deepEqual(r.out.errors, [{ code: 'WRITE_DENIED', layer: 'project' }]);
   assert.match(r.stderr, /project-local/);
+  // A failed project-local write never suggests project-local again.
+  fs.writeFileSync(path.join(w, '.acme', '.gitignore'), 'config.local.json\n');
+  fs.chmodSync(path.join(w, '.acme'), 0o555);
+  const l = resolve(sb, ['set', '--layer', 'project-local', '/maxItems', '4'], { cwd: w });
+  fs.chmodSync(path.join(w, '.acme'), 0o755);
+  assert.equal(l.code, 3);
+  assert.deepEqual(l.out.errors, [{ code: 'WRITE_DENIED', layer: 'project-local' }]);
+  assert.match(l.stderr, /approval/);
+  assert.doesNotMatch(l.stderr, /project-local/);
+});
+
+test('project writes refuse repo-controlled symlinks (.<mkt> dir, config file, .gitignore, dangling too)', { skip: WIN && 'posix symlinks' }, () => {
+  const sb = sandbox();
+  const outside = path.join(sb.T, 'outside');
+  fs.mkdirSync(outside, { recursive: true });
+  const victim = path.join(outside, 'victim.txt');
+  const cases = [
+    // [name, layer, set up <w>/.acme]
+    ['dir link', 'project', (a) => fs.symlinkSync(outside, a)],
+    ['config file link', 'project', (a) => { fs.mkdirSync(a); fs.writeFileSync(victim, '{}'); fs.symlinkSync(victim, path.join(a, 'config.json')); }],
+    ['local file link', 'project-local', (a) => { fs.mkdirSync(a); fs.writeFileSync(victim, '{}'); fs.symlinkSync(victim, path.join(a, 'config.local.json')); }],
+    ['.gitignore link', 'project-local', (a) => { fs.mkdirSync(a); fs.writeFileSync(victim, 'keep\n'); fs.symlinkSync(victim, path.join(a, '.gitignore')); }],
+    ['dangling .gitignore link', 'project-local', (a) => { fs.mkdirSync(a); fs.symlinkSync(path.join(outside, 'new.txt'), path.join(a, '.gitignore')); }],
+  ];
+  for (const [name, layer, setup] of cases) {
+    const w = path.join(sb.T, `w-${name.replace(/\W+/g, '-')}`);
+    fs.mkdirSync(w, { recursive: true });
+    setup(path.join(w, '.acme'));
+    const before = fs.readdirSync(outside).map((f) => [f, fs.readFileSync(path.join(outside, f), 'utf8')]);
+    const r = resolve(sb, ['set', '--layer', layer, '/maxItems', '4'], { cwd: w });
+    assert.equal(r.code, 3, name);
+    assert.deepEqual(r.out.errors, [{ code: 'WRITE_DENIED', layer }], name);
+    assert.match(r.stderr, /symlink/, name);
+    assert.deepEqual(fs.readdirSync(outside).map((f) => [f, fs.readFileSync(path.join(outside, f), 'utf8')]), before, `${name}: outside untouched`);
+    if (fs.existsSync(victim)) fs.rmSync(victim);
+  }
+  // The user layer may be a symlink (dotfile managers): still written.
+  const real = path.join(sb.T, 'dotfiles', 'acme');
+  fs.mkdirSync(real, { recursive: true });
+  fs.symlinkSync(path.join(sb.T, 'dotfiles'), path.dirname(path.dirname(sb.userFile)));
+  assert.equal(resolve(sb, ['set', '--layer', 'user', '/maxItems', '4']).code, 0);
+  assert.ok(fs.existsSync(path.join(real, 'config.json')));
+});
+
+test('set reports the written file on stderr; a bad value hints at JSON quoting', () => {
+  const sb = sandbox();
+  const w = path.join(sb.T, 'w');
+  fs.mkdirSync(w);
+  const r = resolve(sb, ['set', '--layer', 'project', '/style/tone', '"dry"'], { cwd: w });
+  assert.equal(r.code, 0);
+  assert.equal(r.stderr, `resolve.mjs: wrote ${path.join(w, '.acme', 'config.json')}\n`);
+  const bad = resolve(sb, ['set', '--layer', 'project', '/style/tone', 'dry'], { cwd: w });
+  assert.equal(bad.code, 2);
+  assert.match(bad.stderr, /bad value: .*quote strings, e\.g\. '"table"'/);
+  assert.equal(resolve(sb, ['unset', '--layer', 'project', '/nothing'], { cwd: w }).stderr, '', 'no write, no line');
 });
 
 test('set refuses while policy is broken (fail closed)', () => {
@@ -293,11 +348,18 @@ test('runtime guard: node < 20 exits 9 RUNTIME_UNSUPPORTED before any work; bun 
   assert.equal(JSON.parse(r.text).ok, false);
 });
 
-test('static: no require, no network, no eval; the only child process is git rev-parse', () => {
+test('static: no require, no network, no eval; the only child process is git rev-parse', (t) => {
   const src = fs.readFileSync(RESOLVE, 'utf8');
   // Simplicity cap: counts code lines only (blank lines and `//` comment lines are free).
-  const code = src.split('\n').filter((l) => l.trim() !== '' && !l.trim().startsWith('//'));
-  assert.ok(code.length <= 450, `resolve.mjs has ${code.length} code lines (cap 450, blank and comment lines excluded)`);
+  const codeLines = (text) => text.split('\n').filter((l) => l.trim() !== '' && !l.trim().startsWith('//')).length;
+  const code = codeLines(src);
+  assert.ok(code <= 450, `resolve.mjs has ${code} code lines (cap 450, blank and comment lines excluded)`);
+  // Report the size metric (BUILD-PLAN): code lines of the resolver and of all non-test tooling .mjs.
+  const tools = path.dirname(KIT_SRC);
+  const files = fs.readdirSync(tools, { recursive: true }).map(String)
+    .filter((f) => f.endsWith('.mjs') && !f.split(path.sep).includes('tests'));
+  const total = files.reduce((sum, f) => sum + codeLines(fs.readFileSync(path.join(tools, f), 'utf8')), 0);
+  t.diagnostic(`size: resolve.mjs ${code} code lines (cap 450); tools/**/*.mjs without tests: ${total} code lines in ${files.length} files`);
   assert.doesNotMatch(src, /\brequire\s*\(|node:(http|https|net|dgram|tls|dns|vm|worker_threads)|\beval\s*\(|new Function|import\s*\(/);
   const imports = [...src.matchAll(/^import .* from '([^']+)';$/gm)].map((m) => m[1]).sort();
   assert.deepEqual(imports, ['./json.mjs', 'node:child_process', 'node:fs', 'node:os', 'node:path', 'node:url']);

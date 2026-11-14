@@ -2,6 +2,7 @@
 // only the Agent Skills keys. Known host-only keys (HOST_ONLY, Claude Code) are a warning, not an
 // error: a skill may use them, Codex ignores them. Also one warning per SKILL.md that still contains
 // "TODO" (the `mb new skill` scaffold body), so an unfinished skill is visible but not blocking.
+// A `TODO` inside an inline code span or a fenced block is prose about the word, not a placeholder.
 // [integrator] An unquoted top-level value containing ": " is an error (strict YAML rejects it).
 
 export const id = 'CHK-04';
@@ -49,7 +50,8 @@ export function run(rctx) {
       if (typeof d !== 'string' || d.length < 1 || d.length > 1024) {
         out.push({ path: rel, message: 'description must be a string of 1-1024 characters', fix: 'write a one-paragraph description with "Use when ..."' });
       }
-      if (/\bTODO\b/.test(text)) out.push({ path: rel, severity: 'warning', message: 'SKILL.md still contains TODO', fix: 'finish the skill body' });
+      const prose = text.replace(/^\s*(```|~~~)[\s\S]*?^\s*\1.*$/gm, '').replace(/`[^`\n]*`/g, '');
+      if (/\bTODO\b/.test(prose)) out.push({ path: rel, severity: 'warning', message: 'SKILL.md still contains TODO', fix: 'finish the skill body' });
     }
   }
   return out;
