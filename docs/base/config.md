@@ -121,7 +121,7 @@ The generated SKILL.md block that tells the agent all this looks like this (inde
 
 ## Writing settings
 
-People can write a setting from a clone of the marketplace with `./mb config set <p> --layer user|project|project-local [--shared] <json-pointer> '<json>' [--cwd dir]`, which runs the same command as the skill (below) and prints the result. The skill saves a stated preference with:
+People can write a setting from a clone of the marketplace with `./mb config set <p> --layer user|project|project-local [--shared] <json-pointer> '<json>' [--cwd dir]`, and remove one with `./mb config unset <p> --layer ... [--shared] <json-pointer> [--cwd dir]`. Both run the same command as the skill (below), print the resolver JSON on stdout and the file they wrote on stderr (`resolve.mjs: wrote <path>`). The value is JSON, so a string needs its quotes inside the shell quotes: `'"table"'`, not `table` (an unquoted string fails with exit 2 and says so). The skill saves a stated preference with:
 
 ```sh
 node "<skill-dir>/_mb/resolve.mjs" set   --plugin <p> --layer user|project|project-local [--shared] <json-pointer> '<json>'
@@ -132,8 +132,10 @@ node "<skill-dir>/_mb/resolve.mjs" unset --plugin <p> --layer user|project|proje
 - It is checked against the strict text rules and, if present, the plugin's `config.schema.json`.
 - A path that overlaps a locked path is refused (`LOCKED`, exit 3) and nothing is written.
 - The write is atomic and keeps unknown keys. An unparsable existing file is left untouched (exit 3).
-- If the file cannot be written (`WRITE_DENIED`, for example the user file inside the Codex sandbox), the skill asks you before it writes `--layer project-local` instead, or asks you to approve the write.
-- A `project-local` write also makes sure `<root>/.<mkt>/.gitignore` lists `config.local.json` (it creates or extends that file; it never runs git), so the file stays out of git in any repo. The derived marketplace's own `.gitignore` lists it too.
+- File modes: a new config directory is created `0700`, and every write leaves the file `0600` (it is replaced by a new file, so an older `0644` file becomes `0600` too). This also applies to the committed project file in your checkout; git records no read permissions, so other clones get their usual default mode.
+- If the file cannot be written (`WRITE_DENIED`, for example the user file inside the Codex sandbox), the skill asks you before it writes `--layer project-local` instead, or asks you to approve the write. The stderr hint names the right fallback for the layer (a failed `project-local` write is never told to write `project-local`).
+- `project` and `project-local` writes never follow a symlink: if `<root>/.<mkt>`, the target config file or `<root>/.<mkt>/.gitignore` is a symlink (even a dangling one), the write is refused with `WRITE_DENIED` and nothing is written, because a checkout could point them outside the project. The user layer may be a symlink (dotfile managers).
+- A `project-local` write also makes sure `<root>/.<mkt>/.gitignore` lists `config.local.json` (it creates or extends that file; it never runs git), so the file stays out of git in any repo. This happens silently and on purpose: ignoring the file is stronger than warning that it is not ignored. The file is added even when the root `.gitignore` already covers it; that is harmless. The derived marketplace's own `.gitignore` lists it too.
 - `project-local` is per checkout: another clone or worktree of the same repo has its own `config.local.json`.
 - Other exit-3 codes of `set`/`unset`: `SCHEMA_INVALID` (value violates `config.schema.json`), `FILE_INVALID` (target file unparsable; never rewritten).
 
@@ -157,6 +159,8 @@ The agent follows `_mb/FALLBACK.md` step by step. Key points:
 - Tiers b and c never write config. They show you the file and JSON to add instead.
 - **Opt out:** the org sets `"enforced": {"settings": {"merge": {"allowGenerated": false}}}` in `policy/org.json`, or a user sets `"merge": {"allowGenerated": false}` in the user file. The skill then stops when no runtime exists.
 - `./mb check`, `./mb policy emit` and CI always use tier a.
+
+**Size.** The resolver's 450-line cap counts code lines only (blank lines and `//` comment lines are free). `./mb test` prints the current numbers on every run: a `size:` diagnostic line with the code lines of `resolve.mjs` and the total code lines of all non-test tooling under `tools/`.
 
 ## Scope of access checks
 

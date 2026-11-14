@@ -46,7 +46,7 @@ Every problem comes with a fix hint. A new skill shows one TODO warning until yo
 ./mb try release-notes --host codex  "Draft release notes for: fixed login timeout, added CSV export"
 ```
 
-`try` never touches your real host settings.
+`try` installs nothing into your host. Codex runs in a temporary `CODEX_HOME` that is removed afterwards. Claude runs `claude -p --plugin-dir` in your normal Claude Code setup: you need a logged-in session, and session history goes to your usual Claude config dir.
 
 **5. Open a pull request.** CI runs the same checks (`mb-check`).
 

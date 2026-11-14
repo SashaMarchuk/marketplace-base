@@ -39,7 +39,7 @@ A blocked plugin shows `blocked: true` (exit 4). `blocked: true` overrides `ok`;
 
 **What `deny` stops at runtime.** `access.deny`, `access.allow` and enforced `enabled: false` are applied at runtime only by **configurable** skills (they run the resolver). A skill of a plugin without `config.defaults.json` keeps working when denied. To block those, use the host policy below or remove them from the marketplace. See [config.md](config.md#scope-of-access-checks).
 
-`./mb check` validates every policy file (CHK-12), including enforced values against the target plugin's schema and team values that conflict with org values. It also prints an info line for each plugin of this marketplace that an org `access.deny` entry matches, so an accidental block is visible. After a policy change, run `./mb gen`: it re-vendors the policy into every configurable plugin and changes their `+mb.<hash>` version suffix, so users receive it on their next plugin update.
+`./mb check` validates every policy file (CHK-12), including enforced values against the target plugin's schema and team values that conflict with org values. It also prints an info line for each plugin of this marketplace that an org or team `access.deny` entry matches, so an accidental block is visible. After a policy change, run `./mb gen`: it re-vendors the policy into every configurable plugin and changes their `+mb.<hash>` version suffix, so users receive it on their next plugin update.
 
 ## Emitting host policy
 

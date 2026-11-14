@@ -490,6 +490,17 @@ test('config set passes layer, pointer and value to the resolver and prints its 
   assert.equal((await mb(root, ['config', 'resolve', 'demo', '--layer', 'user'])).code, 2);
 });
 
+test('config unset passes layer and pointer to the resolver; set/unset argument counts are checked', async () => {
+  const root = resolverRepo(RESOLVED, 0);
+  const r = await mb(root, ['config', 'unset', 'demo', '--layer', 'project-local', '/maxItems']);
+  assert.equal(r.code, 0, r.err);
+  assert.equal(r.out, RESOLVED + '\n');
+  assert.deepEqual(JSON.parse(r.err.trim()).argv, ['unset', '--plugin', 'demo', '--layer', 'project-local', '/maxItems']);
+  assert.equal((await mb(root, ['config', 'unset', 'demo', '/maxItems'])).code, 2, 'needs --layer');
+  assert.equal((await mb(root, ['config', 'unset', 'demo', '--layer', 'user', '/maxItems', '5'])).code, 2, 'unset takes only <ptr>');
+  assert.equal((await mb(root, ['config', 'unset', 'demo', '--layer', 'user', '--json', '/maxItems'])).code, 2);
+});
+
 // ------------------------------------------------------------------ try (fake host CLIs)
 
 if (POSIX) {

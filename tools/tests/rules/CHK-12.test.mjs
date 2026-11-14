@@ -22,12 +22,13 @@ test('CHK-12 passes: valid org + team policy, enforced value matches the plugin 
 test('CHK-12 fails: unknown closed-level key, enforced value against schema, team-vs-org conflict', async () => {
   let r = errors(await runRule('CHK-12', makeRepo({ 'policy/org.json': '{"enforce":{}}' })));
   assert.match(r[0].message, /^POLICY_INVALID/);
-  assert.equal(r[0].fix, 'fix policy file');
+  assert.match(r[0].fix, /layer-file\.schema\.json/);
   r = errors(await runRule('CHK-12', makeRepo({
     'plugins/demo/config.defaults.json': '{}', 'plugins/demo/config.schema.json': SCHEMA,
     'policy/org.json': '{"enforced":{"plugins":{"demo":{"settings":{"maxItems":99}}}}}',
   })));
   assert.match(r[0].message, /does not match its config.schema.json/);
+  assert.match(r[0].fix, /config\.schema\.json of demo/);
   r = errors(await runRule('CHK-12', makeRepo({
     'policy/org.json': '{"enforced":{"settings":{"x":2}}}',
     'policy/teams/pay.json': '{"enforced":{"settings":{"x":1}}}',
@@ -35,6 +36,7 @@ test('CHK-12 fails: unknown closed-level key, enforced value against schema, tea
   assert.equal(r.length, 1);
   assert.equal(r[0].path, 'policy/teams/pay.json');
   assert.match(r[0].message, /ENFORCED_CONFLICT at \/x/);
+  assert.match(r[0].fix, /remove \/x from "enforced" in policy\/teams\/pay\.json/);
 });
 
 // The conformance vectors are the judge for policy validity and ENFORCED_CONFLICT.
@@ -70,4 +72,12 @@ test('CHK-12 reports a plugin matched by org access.deny as info', async () => {
   assert.equal(r.length, 1);
   assert.equal(r[0].severity, 'info');
   assert.equal(r[0].message, 'plugin demo matches org access.deny "de*" (blocked by org policy)');
+});
+
+test('CHK-12 reports a plugin matched by a team access.deny as info on the team file', async () => {
+  const r = await runRule('CHK-12', makeRepo({ 'policy/teams/pay.json': '{"access":{"deny":["demo"]}}' }));
+  assert.equal(r.length, 1);
+  assert.equal(r[0].severity, 'info');
+  assert.equal(r[0].path, 'policy/teams/pay.json');
+  assert.equal(r[0].message, 'plugin demo matches team access.deny "demo" (blocked by team policy)');
 });

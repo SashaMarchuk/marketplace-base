@@ -50,7 +50,7 @@ Then ask your agent something like "add a changelog entry for this fix". See [US
 
 ## Make your own marketplace
 
-1. Click **Use this template** on GitHub (or `gh repo create acme-skills --template SashaMarchuk/marketplace-base`, or `git clone`).
+1. Click **Use this template** on GitHub (or `gh repo create acme-skills --template SashaMarchuk/marketplace-base`, or `git clone`). After `git clone`, run `git remote rename origin base` and add your own repo as `origin`; otherwise `origin` still points at the base (see [derive-update.md](docs/base/derive-update.md#1-create-your-repo)).
 2. In your new repo, run:
 
    ```sh

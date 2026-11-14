@@ -37,6 +37,7 @@ Re-check these when a host changes. If a fact stops holding, `mb` switches to th
 | `CODEX_HOME=<temp dir>` isolates installs from the real `~/.codex` | [V] |
 | In `-s workspace-write`, reading `~/.config/<mkt>/` works; writes outside the workspace and the temp dirs (`/tmp`, `$TMPDIR`) are denied, so writing `~/.config` or `~/.local/share` fails | [V] |
 | User skills folder is `~/.agents/skills` | [D] |
+| Codex follows ordering and read-only instructions in skill text less strictly than Claude Code: in 2 of 5 runs of a configurable skill a workspace search ran before the resolver call that the skill says must come first, and in 1 run it edited the file when a read-only skill was asked to "add" an entry. Write skills so an extra early read does no harm, and say plainly which requests may change files | [V] |
 | `requirements.toml` `[marketplaces]` with `restrict_to_allowed_sources` and `allowed_sources` restricts plugin sources | [U] emitted with an UNVERIFIED header |
 
 ## GitHub (checked 2026-11-14)

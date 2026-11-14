@@ -352,7 +352,10 @@ function writeOp(op, args, kitDir, kit) {
   }
   let value;
   if (op === 'set') {
-    try { value = parse(rawValue, { mode: 'config' }); } catch (e) { if (e.name !== 'JsonError') throw e; usage(`bad value: ${e.message}`); }
+    try { value = parse(rawValue, { mode: 'config' }); } catch (e) {
+      if (e.name !== 'JsonError') throw e;
+      usage(`bad value: ${e.message} (the value is JSON: quote strings, e.g. '"table"')`);
+    }
     let schema;
     try { schema = parse(fs.readFileSync(path.join(kitDir, 'config.schema.json')), { mode: 'config' }); } catch (e) {
       if (e.name === 'JsonError') fail(3, { code: 'KIT_INVALID' }); else if (e.code !== 'ENOENT') throw e;
@@ -365,11 +368,21 @@ function writeOp(op, args, kitDir, kit) {
   if (!before.ok) return before;
   if (before.locked.some((q) => overlap(q, ptr))) return failResult(3, [{ code: 'LOCKED', path: ptr }], before.warnings);
   const file = layerPaths(I.env, kit.marketplace, [])[layer];
-  const invalid = (code) => failResult(3, [{ code, layer }], before.warnings);
-  if (file === undefined) return invalid('WRITE_DENIED');
+  const invalid = (code, hint) => Object.assign(failResult(3, [{ code, layer }], before.warnings), hint ? { hint } : {});
+  // Layer-correct hint: project-local is the fallback for user/project, never for itself.
+  const denied = () => invalid('WRITE_DENIED', layer === 'project-local' ? 'rerun with approval, or fix the file permissions' : 'write project-local instead, or rerun with approval');
+  if (file === undefined) return denied();
+  // The project dir .<mkt> comes from the checkout: never write through a symlink there (the dir,
+  // the config file or .gitignore). The user layer is not repo-controlled (dotfile links stay fine).
+  if (layer !== 'user') {
+    const dir = path.dirname(file), link = [dir, file, path.join(dir, '.gitignore')].find((p) => {
+      try { return fs.lstatSync(p).isSymbolicLink(); } catch (e) { if (e.code === 'ENOENT' || e.code === 'ENOTDIR') return false; throw e; }
+    });
+    if (link) return invalid('WRITE_DENIED', `refusing to write through the symlink ${link}`);
+  }
   let raw, d = obj();
   try { raw = fs.readFileSync(file); } catch (e) {
-    if (e.code === 'EACCES' || e.code === 'EPERM') return invalid('WRITE_DENIED');
+    if (e.code === 'EACCES' || e.code === 'EPERM') return denied();
     if (e.code !== 'ENOENT') throw e;
   }
   if (raw !== undefined) {
@@ -395,13 +408,12 @@ function writeOp(op, args, kitDir, kit) {
     fs.writeFileSync(tmp, canonicalPretty(d), { mode: 0o600, flag: 'wx' });
     try { fs.renameSync(tmp, file); } catch (e) { try { fs.unlinkSync(tmp); } catch { /* gone */ } throw e; }
   } catch (e) {
-    if (e.code === 'EACCES' || e.code === 'EPERM' || e.code === 'EROFS') {
-      return Object.assign(failResult(3, [{ code: 'WRITE_DENIED', layer }], before.warnings), { hint: 'write project-local instead, or rerun with approval' });
-    }
+    if (e.code === 'EACCES' || e.code === 'EPERM' || e.code === 'EROFS') return denied();
     throw e;
   }
   const after = core(I, read);
-  return { ...after, exit: after.ok ? 0 : after.exit };
+  // The path goes to stderr only (the JSON keys are fixed by MERGE-SPEC); `mb config` shows it.
+  return { ...after, exit: after.ok ? 0 : after.exit, msg: `wrote ${file}` };
 }
 
 // ---------- CLI ----------

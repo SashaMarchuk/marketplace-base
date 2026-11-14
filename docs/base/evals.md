@@ -28,7 +28,9 @@ Grader frontmatter: `type`, `weight`, `arm` (`with-only | both`), plus options f
 | `llm` | the body is the criteria; `focus` |
 | `baseline` | none |
 
-Every skill needs at least one **trigger** case and one **no-trigger** case (CHK-14). `./mb new skill` scaffolds both with these graders (shown indented). For a skill that already exists (migrated or written by hand), `./mb new evals <p>/<s>` adds just these two cases and leaves the skill alone:
+Never write `---` inside a frontmatter block, not even in a `#` comment or a value (a table separator such as `|---|`): the native loader ends the frontmatter at the first `---` it finds, even mid-line, and then rejects the grader. CHK-14 reports it as an error, in graders and in `prompt.md`.
+
+Every skill needs at least one **trigger** case and one **no-trigger** case (CHK-14). `./mb new skill` scaffolds both with these graders (shown indented). For a skill that already exists (migrated or written by hand), `./mb new evals <p>/<s>` adds just these two cases and leaves the skill alone. Until you replace the scaffold prompt text (`Replace this text ...`), `./mb check` warns about that `prompt.md`:
 
     # graders/skill-fired.md
     ---
@@ -53,7 +55,7 @@ Every skill needs at least one **trigger** case and one **no-trigger** case (CHK
 Config cases write a project config with a scaffold script (`case.yaml`: `schema_version: "1.0"`, `name`, `context.scaffold_script`), set `allowed_tools: [Read, Glob, Grep, Skill, Bash]`, and run with `--scaffold` (automatic for configurable plugins). Claude Code runs the scaffold with a fixed environment, so `EVAL_*` variables do not reach it: the script uses `EVAL_MB_MARKETPLACE` when set (the Codex runner sets it) and otherwise the marketplace name written into it when the case was created. Keep scaffolds POSIX `sh`.
 
 - **The scaffold runs `git init -q .` first.** The resolver reads the project layer from the git root (`git rev-parse --show-toplevel`), and the Claude eval workspace sits inside another git repo. Without its own repo the project file is never read and every value comes from the defaults.
-- **A config case has ONE grader**: the one that checks the visible effect of the setting. Its score is then exactly the share of runs that honour the config. The trigger case already checks that the skill fires; extra graders would let a run that ignores the config still score above the threshold. `./mb new skill --config` scaffolds `config-respected/` with `scaffold.sh` (put the setting in it) and a `graders/config-effect.md` stub: a `regex` whose placeholder `pattern` fails until you replace it with text only the configured setting produces (or switch to `type: llm` with the criteria in the body).
+- **A config case has ONE grader**: the one that checks the visible effect of the setting. Its score is then exactly the share of runs that honour the config. The trigger case already checks that the skill fires; extra graders would let a run that ignores the config still score above the threshold. CHK-14 warns when the scaffolded `config-respected/` case has more than one grader. `./mb new skill --config` scaffolds `config-respected/` with `scaffold.sh` (put the setting in it) and a `graders/config-effect.md` stub: a `regex` whose placeholder `pattern` fails until you replace it with text only the configured setting produces (or switch to `type: llm` with the criteria in the body).
 - `config.defaults.json` is a bare settings object, not a layer file: `{"sections": ["Summary", "Decisions"], "maxItems": 10}`.
 
 A local Claude run under a temporary `CLAUDE_CONFIG_DIR` is not logged in: pass `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in the environment (never write it to a file).
@@ -92,7 +94,7 @@ A host without its CLI or credentials is reported SKIPPED: exit 0 in CI or with 
 
 ## Costs
 
-Evals call real models. Budget roughly `cases × runs × hosts` agent sessions per run; `maxCostUsd` caps the Claude runner. To keep costs down:
+Evals call real models. Budget roughly `cases × runs × hosts` agent sessions per run, at about 20 to 60 seconds each (measured on Codex: 5 cases × 1 run took about 3 minutes, 3 cases × 3 runs about 3.5 minutes); `maxCostUsd` caps the Claude runner. To keep costs down:
 
 - run one plugin and one case while iterating: `./mb eval <p> --host claude --case '<name>' --runs 1`;
 - in CI, evals run only on manual dispatch (set `changed-only` on a PR branch to evaluate just the changed plugins) and nightly, never on `pull_request`. A missing `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` skips that host with a notice.

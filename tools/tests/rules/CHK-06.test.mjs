@@ -13,6 +13,8 @@ test('CHK-06 fails: missing link target, missing backticked script, escape, too 
   const md = SKILL_MD + '\n[x](references/missing.md) `scripts/run.sh` [up](../../../README.md) [`code`](gone.md)\n';
   const r = errors(await runRule('CHK-06', makeRepo({ [REL]: md })));
   assert.equal(r.length, 4);
+  const missing = r.find((x) => x.message.startsWith('link "references/missing.md"'));
+  assert.match(missing.fix, /create references\/missing\.md in the skill dir/);
   const long = errors(await runRule('CHK-06', makeRepo({ [REL]: SKILL_MD + 'x\n'.repeat(500) })));
   assert.match(long[0].message, /lines \(max 500\)/);
   assert.equal(long[0].fix, 'move detail to references/');

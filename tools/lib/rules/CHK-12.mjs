@@ -2,8 +2,9 @@
 // valid POLICY layers: config-text parse, closed shape levels (layer-file schema), valid access, no
 // null under `enforced`. Enforced values must validate against each target plugin's schema, and a
 // team's enforced value must not conflict with the org's (ENFORCED_CONFLICT is an error in CI).
-// an INFO when a plugin in this repo matches an org `access.deny` entry (often intended,
+// an INFO when a plugin in this repo matches an org or team `access.deny` entry (often intended,
 // so never a warning; it just makes the block visible before release).
+// Each finding carries its own fix text; the rule-level `fix` is only the fallback.
 import { parse, same } from '../../kit/json.mjs';
 import { validate, loadSchema } from '../schema-lite.mjs';
 import { globMatch } from '../policy/decide.mjs';
@@ -11,7 +12,14 @@ import { globMatch } from '../policy/decide.mjs';
 export const id = 'CHK-12';
 export const severity = 'error';
 export const title = '`policy/*.json` valid as POLICY layers (tier-a parser, config-text rules, closed shape levels); enforced values validate against the target plugin schemas; team-vs-org enforced conflict';
-export const fix = 'fix policy file';
+export const fix = 'see docs/base/policy.md';
+
+// Fix text per problem code (the code is the prefix of the message from policyProblems).
+const PROBLEM_FIX = {
+  POLICY_INVALID: 'fix the JSON at the path named in the message; allowed keys per level: tools/schemas/layer-file.schema.json (see docs/base/policy.md)',
+  ACCESS_INVALID: '"access" holds "allow" and/or "deny": arrays of plugin names or globs (see docs/base/policy.md)',
+  ENFORCED_INVALID: 'remove the null; to stop enforcing a key, delete it from "enforced"',
+};
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
@@ -103,7 +111,7 @@ export function run(rctx) {
   const docs = new Map();
   for (const rel of files) {
     const { doc, problems } = policyProblems(rctx.readBytes(rel), layerSchema);
-    for (const m of problems) out.push({ path: rel, message: m });
+    for (const m of problems) out.push({ path: rel, message: m, fix: PROBLEM_FIX[m.split(':')[0]] });
     if (doc) docs.set(rel, doc);
   }
 
@@ -119,7 +127,7 @@ export function run(rctx) {
   const known = new Set(rctx.allPlugins.map((p) => p.name));
   for (const [rel, doc] of docs) {
     for (const name of Object.keys(doc.enforced?.plugins ?? {})) {
-      if (!known.has(name)) out.push({ path: rel, severity: 'warning', message: `enforced.plugins.${name}: no such plugin in this marketplace` });
+      if (!known.has(name)) out.push({ path: rel, severity: 'warning', message: `enforced.plugins.${name}: no such plugin in this marketplace`, fix: `fix the plugin name or remove enforced.plugins.${name}` });
     }
     if (!doc.enforced) continue;
     for (const [name, schema] of schemas) {
@@ -127,17 +135,20 @@ export function run(rctx) {
       if (Object.keys(e).length === 0) continue;
       let errs;
       try { errs = validate(schema, e); } catch { continue; } // a schema outside the subset: CHK-11
-      for (const x of errs) out.push({ path: rel, message: `enforced value for ${name} does not match its config.schema.json at ${x.path || '/'}: ${x.message}` });
+      for (const x of errs) out.push({ path: rel, message: `enforced value for ${name} does not match its config.schema.json at ${x.path || '/'}: ${x.message}`, fix: `change the enforced value to one the config.schema.json of ${name} allows` });
     }
   }
 
-  // Plugins the org denies (info only).
+  // Plugins an org or team policy denies (info only).
   const org = docs.get('policy/org.json');
-  const deny = Array.isArray(org?.access?.deny) ? org.access.deny.filter((d) => typeof d === 'string') : [];
-  for (const p of rctx.plugins) {
-    const hit = deny.find((d) => globMatch(d, p.name));
-    if (hit !== undefined) {
-      out.push({ path: 'policy/org.json', severity: 'info', message: `plugin ${p.name} matches org access.deny "${hit}" (blocked by org policy)`, fix: 'nothing to do if intended; otherwise edit access.deny in policy/org.json' });
+  for (const [rel, doc] of docs) {
+    const who = rel === 'policy/org.json' ? 'org' : 'team';
+    const deny = Array.isArray(doc.access?.deny) ? doc.access.deny.filter((d) => typeof d === 'string') : [];
+    for (const p of rctx.plugins) {
+      const hit = deny.find((d) => globMatch(d, p.name));
+      if (hit !== undefined) {
+        out.push({ path: rel, severity: 'info', message: `plugin ${p.name} matches ${who} access.deny "${hit}" (blocked by ${who} policy)`, fix: `nothing to do if intended; otherwise edit access.deny in ${rel}` });
+      }
     }
   }
 
@@ -153,7 +164,7 @@ export function run(rctx) {
           const key = `${ptr}`;
           if (name && seen.has(key)) continue; // already reported for the shared settings
           if (!name) seen.add(key);
-          out.push({ path: rel, message: `ENFORCED_CONFLICT at ${ptr} (${where}): the team locks a value the org enforces differently` });
+          out.push({ path: rel, message: `ENFORCED_CONFLICT at ${ptr} (${where}): the team locks a value the org enforces differently`, fix: `remove ${ptr} from "enforced" in ${rel}, or set it to the value in policy/org.json` });
         }
       }
     }

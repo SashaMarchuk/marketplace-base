@@ -7,7 +7,7 @@
 //   -         otherwise;  "?" when policy/org.json does not parse (CHK-12 reports it)
 
 import { parse, canonicalPretty } from '../../kit/json.mjs';
-import { category } from './marketplaces.mjs';
+import { category, codexPolicy } from './marketplaces.mjs';
 import { globMatch } from '../policy/decide.mjs';
 
 const cell = (s) => String(s).replace(/\r?\n/g, ' ').replace(/\|/g, '\\|');
@@ -39,6 +39,10 @@ export function policyStatus(repo, name) {
   return enabled === true ? 'required' : '-';
 }
 
+// A plugin with codex.policy.installation NOT_AVAILABLE cannot be added on Codex ("not available
+// for install"), so no Codex install command is printed for it.
+const codexInstallable = (p, repo) => codexPolicy(p, repo).installation !== 'NOT_AVAILABLE';
+
 const hostBadge = (p) => (p.hostSpecific.length ? 'host-specific' : '-');
 
 export function catalogBody(repo) {
@@ -60,10 +64,14 @@ export function repoRef(repo) {
   return repo.config.distribution?.repo ?? '<owner>/<repo>';
 }
 
-/** README `install`: the example plugin is the first included plugin by name (`<plugin>` if none). */
+/**
+ * README `install`: the example plugin is the first included plugin by name (`<plugin>` if none);
+ * the Codex example is the first plugin Codex can install.
+ */
 export function installBody(repo) {
   const r = repoRef(repo), m = repo.mkt;
   const p = repo.included[0]?.name ?? '<plugin>';
+  const cp = repo.included.length ? repo.included.find((x) => codexInstallable(x, repo))?.name : '<plugin>';
   return [
     '**Claude Code**',
     '',
@@ -76,7 +84,7 @@ export function installBody(repo) {
     '',
     '```sh',
     `codex plugin marketplace add ${r}`,
-    `codex plugin add ${p}@${m}`,
+    cp ? `codex plugin add ${cp}@${m}` : '# no plugin of this marketplace is available on Codex (Claude Code only)',
     '```',
     '',
     '**Plain skills folder** (from a clone of this repo)',
@@ -114,7 +122,7 @@ export function catalogDoc(repo, versions) {
       `| Host-specific components | ${p.hostSpecific.length ? p.hostSpecific.map(code).join(', ') : '-'} |`,
       `| Org policy | ${policyStatus(repo, p.name)} |`,
       `| Install (Claude Code) | ${code(`claude plugin install ${p.name}@${repo.mkt}`)} |`,
-      `| Install (Codex) | ${code(`codex plugin add ${p.name}@${repo.mkt}`)} |`,
+      `| Install (Codex) | ${codexInstallable(p, repo) ? code(`codex plugin add ${p.name}@${repo.mkt}`) : 'not available (Claude Code only)'} |`,
       '',
       '### Skills',
       '',

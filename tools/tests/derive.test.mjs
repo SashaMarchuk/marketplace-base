@@ -121,12 +121,17 @@ before(() => {
   fs.rmSync(p(w, 'docs/base/r7-removed.md'));
   fs.rmSync(p(w, 'docs/base/r8-edited-removed.md'));
   fs.rmSync(p(w, 'tools/lib/obsolete-fixture.mjs'));
+  write(w, 'tools/lib/added-fixture.mjs', '// added in v0.2.0\n'); // a NEW tooling file: the report must list it
   write(w, '.github/workflows/mb-fixture.yml', 'name: mb-fixture v2\non: workflow_dispatch\njobs: {}\n');
   // B -> S reclassification of CLAUDE.md (row 6).
-  const own = parse(fs.readFileSync(p(w, '.mb/ownership.json')));
-  own.B = own.B.filter((g) => g !== 'CLAUDE.md');
-  own.S = [...own.S, 'CLAUDE.md'];
-  write(w, '.mb/ownership.json', JSON.stringify(own, null, 2) + '\n');
+  // Edited as text, and the base's own ownership test is updated with it (as a real release would), so the
+  // derived repo's `./mb test` stays green after the update (the derive proof runs it).
+  const reclassify = (t) => t.replace('"B": ["CLAUDE.md", ', '"B": [').replace('"S": ["LICENSE", ', '"S": ["CLAUDE.md", "LICENSE", ');
+  const ownText = read(w, '.mb/ownership.json');
+  assert.notEqual(reclassify(ownText), ownText);
+  write(w, '.mb/ownership.json', reclassify(ownText));
+  const ownTest = read(w, 'tools/tests/lib/ownership.test.mjs');
+  write(w, 'tools/tests/lib/ownership.test.mjs', reclassify(ownTest).replace("'CLAUDE.md': 'B'", "'CLAUDE.md': 'S'"));
   // Example changes: a new file in every example (row 1 for adopted / not included, row 4 otherwise).
   for (const ex of fs.readdirSync(p(w, 'examples/plugins'))) {
     const skill = fs.readdirSync(p(w, `examples/plugins/${ex}/skills`))[0];
@@ -332,6 +337,10 @@ ftest('clean update: D/S edits only -> 0 conflicts, D/S bytes unchanged, removed
   assert.match(r.stdout, /^conflicts \(left untouched\) \(0\)$/m);
   assert.match(r.stdout, /^ {2}v0\.2\.0: edited USAGE\.md$/m);
   assert.ok(!has(dir, 'docs/base/rc-only.md'));
+  // Tooling files that are new in v0.2.0 are listed as changed, like the dry run shows them (not "up to date").
+  const changedList = r.stdout.split(/^changed \(\d+\):?$/m)[1].split(/^deleted /m)[0];
+  assert.match(changedList, /^ {2}tools\/lib\/added-fixture\.mjs$/m);
+  assert.match(changedList, /^ {2}tools\/cmd\/base-update\.mjs$/m);
 
   const lock = lockOf(dir);
   assert.deepEqual(lock.base, { url: BARE_URL, tag: 'v0.2.0', commit: SHA['v0.2.0'] });

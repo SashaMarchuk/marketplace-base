@@ -535,3 +535,22 @@ test('mb new evals <p>/<s> adds the trigger and no-trigger cases to an existing 
   assert.equal((await mb(['new', 'evals', 'demo/legacy', '--config'])).code, 2);
   assert.equal((await mb(['new', 'evals'])).code, 2);
 });
+
+test('mb new evals runs gen before check, as mb new skill does', async () => {
+  const root = tmpDir('mb-eval-new-gen-');
+  fs.writeFileSync(path.join(root, 'marketplace.config.json'), JSON.stringify({ name: 'acme' }));
+  const pdir = path.join(root, 'plugins', 'demo');
+  fs.mkdirSync(path.join(pdir, 'skills', 'legacy'), { recursive: true });
+  fs.writeFileSync(path.join(pdir, 'plugin.src.json'), JSON.stringify({ name: 'demo', version: '0.1.0', description: 'Demo.' }));
+  fs.writeFileSync(path.join(pdir, 'skills', 'legacy', 'SKILL.md'), '---\nname: legacy\ndescription: Legacy. Use when testing.\n---\n');
+  const cmdDir = tmpDir('mb-eval-cmd-');
+  fs.writeFileSync(path.join(cmdDir, 'new.mjs'), `export * from ${JSON.stringify(pathToFileURL(path.join(TOOLS, 'cmd', 'new.mjs')).href)};\n`);
+  // Stub gen/check that only record the order they ran in.
+  for (const c of ['gen', 'check']) {
+    fs.writeFileSync(path.join(cmdDir, `${c}.mjs`), `export const name = '${c}'; export const summary = 'stub'; export const usage = 'stub';\nexport async function run(argv, ctx) { ctx.stdout('ran ${c}\\n'); return 0; }\n`);
+  }
+  let o = '';
+  const code = await main(['new', 'evals', 'demo/legacy'], { root, cmdDir, cwd: root, stdout: (x) => { o += x; }, stderr: (x) => { o += x; } });
+  assert.equal(code, 0, o);
+  assert.deepEqual(o.match(/ran \w+/g), ['ran gen', 'ran check']);
+});
