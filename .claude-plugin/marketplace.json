@@ -1,0 +1,55 @@
+{
+  "metadata": {
+    "description": "A base for agent-skill marketplaces that work in Claude Code and Codex."
+  },
+  "name": "marketplace-base",
+  "owner": {
+    "name": "marketplace-base contributors"
+  },
+  "plugins": [
+    {
+      "category": "Productivity",
+      "description": "Write one Keep a Changelog entry under the right heading. Read-only.",
+      "keywords": [
+        "changelog",
+        "release-notes",
+        "keep-a-changelog"
+      ],
+      "name": "changelog-entry",
+      "source": "./examples/plugins/changelog-entry"
+    },
+    {
+      "category": "Productivity",
+      "description": "Review a diff against a configurable, policy-lockable checklist. Read-only.",
+      "keywords": [
+        "review",
+        "quality",
+        "checklist"
+      ],
+      "name": "code-review",
+      "source": "./examples/plugins/code-review"
+    },
+    {
+      "category": "Productivity",
+      "description": "Draft a Conventional Commits message from a described or staged change. Read-only.",
+      "keywords": [
+        "git",
+        "commit",
+        "conventional-commits"
+      ],
+      "name": "commit-message",
+      "source": "./examples/plugins/commit-message"
+    },
+    {
+      "category": "Productivity",
+      "description": "Turn raw meeting notes into a structured template with configurable sections, language and date format.",
+      "keywords": [
+        "meetings",
+        "notes",
+        "action-items"
+      ],
+      "name": "meeting-notes",
+      "source": "./examples/plugins/meeting-notes"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "specVersion": 1,
+  "request": {
+    "plugin": "p",
+    "tier": "a"
+  },
+  "kit": {
+    "marketplace": "acme",
+    "plugin": "p",
+    "skill": "s",
+    "layers": [
+      "skill-defaults",
+      "org",
+      "team",
+      "project",
+      "user",
+      "project-local"
+    ],
+    "defaults": {}
+  },
+  "env": {
+    "platform": "posix",
+    "cwd": "/r/sub",
+    "gitRoot": "/r",
+    "home": "/h",
+    "XDG_CONFIG_HOME": null,
+    "APPDATA": null
+  },
+  "files": {
+    "/r/.acme/config.json": "{\"settings\":{\"x\":\"root\"}}",
+    "/r/sub/.acme/config.json": "{\"settings\":{\"x\":\"decoy\",\"y\":\"decoy\"}}"
+  }
+}

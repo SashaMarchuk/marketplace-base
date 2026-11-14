@@ -1,0 +1,14 @@
+{
+  "author": {
+    "name": "marketplace-base contributors"
+  },
+  "description": "Review a diff against a configurable, policy-lockable checklist. Read-only.",
+  "keywords": [
+    "review",
+    "quality",
+    "checklist"
+  ],
+  "license": "MIT",
+  "name": "code-review",
+  "version": "0.1.0+mb.8d359f31"
+}

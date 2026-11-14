@@ -1,0 +1,6 @@
+{
+  "$schema": "../../tools/schemas/plugin-src.schema.json",
+  "name": "{{plugin}}",
+  "version": "0.1.0",
+  "description": "{{description}}"
+}

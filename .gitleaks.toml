@@ -1,0 +1,14 @@
+# gitleaks configuration (base-owned). Used by CHK-20 (`gitleaks dir`, when gitleaks is installed)
+# and by the release leak gate (`gitleaks detect` over the full history).
+# It extends the default gitleaks rules. Keep the allowlist narrow: tests build fake tokens at
+# runtime instead of committing them, so no path is allowlisted.
+title = "marketplace-base"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documented placeholders only"
+regexes = [
+  '''\$\{env:[A-Za-z_][A-Za-z0-9_]*\}''',
+]

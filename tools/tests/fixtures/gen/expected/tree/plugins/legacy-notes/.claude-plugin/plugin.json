@@ -1,0 +1,9 @@
+{
+  "author": {
+    "email": "alice@example.com",
+    "name": "Alice Example"
+  },
+  "description": "Legacy notes plugin! Blocked by org policy.",
+  "name": "legacy-notes",
+  "version": "2.0.0"
+}

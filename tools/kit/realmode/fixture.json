@@ -1,0 +1,12 @@
+{
+  "about": "Real-mode check (FALLBACK step 8b). Create T/k/<kitFiles>, T/r (git init), T/r/<repoFiles>, and the user file. Run with cwd T/r/sub and MB_KIT=T/k. POSIX: HOME=T/h, XDG_CONFIG_HOME unset, user file at T/h/.config/acme/config.json. Windows: APPDATA=T\\a, user file at T\\a\\acme\\config.json. T/r/sub/.acme/config.json is a decoy that must be ignored.",
+  "kitFiles": {
+    "kit.json": "{\"defaults\":{\"maxItems\":5,\"style\":{\"tone\":\"neutral\"}},\"layers\":[\"skill-defaults\",\"org\",\"team\",\"project\",\"user\",\"project-local\"],\"marketplace\":\"acme\",\"plugin\":\"p\",\"skill\":\"s\",\"specVersion\":1}\n",
+    "policy/org.json": "{\"enforced\":{\"settings\":{\"style\":{\"tone\":\"formal\"}}}}\n"
+  },
+  "repoFiles": {
+    ".acme/config.json": "{\"settings\":{\"maxItems\":7,\"lang\":\"en\"}}\n",
+    "sub/.acme/config.json": "{\"settings\":{\"maxItems\":99,\"decoy\":true}}\n"
+  },
+  "userFile": "{\"plugins\":{\"p\":{\"settings\":{\"maxItems\":9,\"style\":{\"tone\":\"casual\"}}}}}\n"
+}

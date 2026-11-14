@@ -1,0 +1,9 @@
+schema: spec-driven
+
+context: |
+  {{displayName}} ({{mkt}}): an agent-skill marketplace built on marketplace-base, for Claude Code and Codex.
+  Base requirements live in openspec/specs/mb-*/ with IDs `MB-<CAP>-NNN`; they are base-owned, do not edit them.
+  Requirements of this marketplace: `### Requirement: <PREFIX>-NNN Title` in openspec/specs/<capability>/,
+  with a prefix other than MB. IDs are never reused; a new ID is the highest number used + 1.
+  Change ids of this marketplace must not start with `mbase-` (that prefix is reserved for the base).
+  Agents: read AGENTS.md first. The `mb` CLI is the only tool; OpenSpec is never needed at runtime.

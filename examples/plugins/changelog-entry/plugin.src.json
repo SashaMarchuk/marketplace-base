@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../tools/schemas/plugin-src.schema.json",
+  "name": "changelog-entry",
+  "version": "0.1.0",
+  "description": "Write one Keep a Changelog entry under the right heading. Read-only.",
+  "keywords": ["changelog", "release-notes", "keep-a-changelog"],
+  "category": "Productivity",
+  "license": "MIT"
+}

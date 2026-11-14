@@ -1,0 +1,6 @@
+```text
+fix(date): handle empty input without crashing the report page
+
+Return null for non-string or blank input to avoid Invalid Date objects
+from empty strings. Trim non-empty strings before parsing.
+```

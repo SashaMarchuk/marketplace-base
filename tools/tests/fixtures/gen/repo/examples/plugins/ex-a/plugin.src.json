@@ -1,0 +1,11 @@
+{
+  "name": "ex-a",
+  "version": "0.3.0",
+  "description": "Example A. Configurable example.",
+  "author": { "name": "Bob Example", "email": "bob@example.com", "url": "https://example.com/bob" },
+  "keywords": ["example"],
+  "category": "Writing",
+  "license": "Apache-2.0",
+  "homepage": "https://example.com/ex-a",
+  "repository": "https://example.com/ex-a.git"
+}

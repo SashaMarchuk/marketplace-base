@@ -1,0 +1,48 @@
+{
+  "$schema": "./tools/schemas/marketplace-config.schema.json",
+  "base": {
+    "url": "{{baseUrl}}"
+  },
+  "ci": {
+    "osMatrix": [
+      "ubuntu-latest"
+    ]
+  },
+  "codex": {
+    "defaultCategory": "Productivity",
+    "policy": {
+      "authentication": "ON_INSTALL",
+      "installation": "AVAILABLE"
+    }
+  },
+  "config": {
+    "layers": [
+      "skill-defaults",
+      "org",
+      "team",
+      "project",
+      "user",
+      "project-local"
+    ]
+  },
+  "description": "{{displayName}}: agent skills for Claude Code and Codex.",
+  "displayName": "{{displayName}}",
+  "distribution": {
+    "repo": "{{repo}}",
+    "source": "github"
+  },
+  "evals": {
+    "maxCostUsd": 5,
+    "runs": 3,
+    "threshold": 0.6
+  },
+  "includeExamples": true,
+  "name": "{{mkt}}",
+  "owner": {
+    "email": "{{email}}",
+    "name": "{{owner}}"
+  },
+  "policyEmit": {
+    "marketplaceOnly": false
+  }
+}

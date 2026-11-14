@@ -1,0 +1,120 @@
+# mb-release (base-owned; SPEC section 16). On a v* tag: check, policy emit for both hosts, and a
+# GitHub release with the outputs + SHA256SUMS (policy emit is skipped when marketplace.config.json
+# has no `distribution`). In the base repo (no .mb-lock.json) it first fails
+# unless .mb/base-version.json equals the tag; derived repos skip that assertion.
+# Release checklist (also in the PR template and docs/base/github.md): attach both-host eval results
+# for the tagged commit (required for base releases); a derived repo without eval keys may write
+# "evals not run" in its release notes.
+name: mb-release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mb-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CLAUDE_CODE_VERSION: 2.1.325
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      assets: ${{ steps.pkg.outputs.assets }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Base only - .mb/base-version.json must equal the tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ -f .mb-lock.json ]; then
+            echo "derived repo: base-version assertion skipped"
+            exit 0
+          fi
+          node --input-type=module <<'JS'
+          import fs from "node:fs";
+          const v = JSON.parse(fs.readFileSync(".mb/base-version.json", "utf8")).version;
+          if (v !== process.env.TAG) {
+            console.log(`::error::.mb/base-version.json is ${v} but the tag is ${process.env.TAG}; set it in the release commit before tagging`);
+            process.exit(1);
+          }
+          console.log(`base version ${v} matches the tag`);
+          JS
+      - name: Install the pinned Claude Code CLI (CHK-18)
+        run: npm i -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+      - name: Private leak denylist (optional secret, never printed)
+        env:
+          DENYLIST: ${{ secrets.MB_LEAK_DENYLIST }}
+        run: |
+          if [ -n "$DENYLIST" ]; then
+            printf '%s\n' "$DENYLIST" > "$RUNNER_TEMP/mb-leak-denylist.txt"
+            echo "MB_LEAK_DENYLIST=$RUNNER_TEMP/mb-leak-denylist.txt" >> "$GITHUB_ENV"
+          fi
+      - name: ./mb check
+        run: ./mb check
+      - name: ./mb policy emit (both hosts)
+        run: |
+          # policy emit needs `distribution` (the marketplace's GitHub repo); without it, skip (ORCH O9).
+          if ! node -e 'process.exit(JSON.parse(require("fs").readFileSync("marketplace.config.json", "utf8")).distribution ? 0 : 1)'; then
+            echo "::notice::policy emit skipped: marketplace.config.json has no distribution"
+            exit 0
+          fi
+          ./mb policy emit --host claude --out dist/release/policy-claude
+          ./mb policy emit --host codex --out dist/release/policy-codex
+      - name: Package + SHA256SUMS
+        id: pkg
+        run: |
+          if [ ! -d dist/release ]; then echo "no policy outputs: release without assets"; echo "assets=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          mkdir -p dist/assets
+          (cd dist/release && tar -czf ../assets/policy-claude.tar.gz policy-claude && tar -czf ../assets/policy-codex.tar.gz policy-codex)
+          (cd dist/assets && sha256sum -- *.tar.gz > SHA256SUMS && cat SHA256SUMS)
+          echo "assets=true" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.pkg.outputs.assets == 'true'
+        with:
+          name: release-assets
+          path: dist/assets/
+          if-no-files-found: error
+
+  publish:
+    # Runs no repository code: only downloads the built assets and calls gh.
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.build.outputs.assets == 'true'
+        with:
+          name: release-assets
+          path: assets
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          shopt -s nullglob
+          assets=(assets/*)
+          prerelease=()
+          case "$TAG" in *-*) prerelease=(--prerelease) ;; esac
+          notes="Policy drop-ins for Claude Code and Codex, with SHA256SUMS.
+
+          Release checklist: attach the both-host eval results for this commit (required for base releases), or write \"evals not run\"."
+          gh release create "$TAG" "${assets[@]}" --repo "$REPO" --verify-tag --title "$TAG" --notes "$notes" --generate-notes "${prerelease[@]}"

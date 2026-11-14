@@ -1,0 +1,5 @@
+{
+  "checks": { "tests": true, "security": true, "docs": false, "performance": false },
+  "severityLabels": ["blocker", "major", "minor"],
+  "maxItems": 10
+}

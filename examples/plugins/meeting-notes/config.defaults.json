@@ -1,0 +1,6 @@
+{
+  "sections": ["Summary", "Decisions", "Action items"],
+  "language": "en",
+  "dateFormat": "YYYY-MM-DD",
+  "actionItemOwner": true
+}

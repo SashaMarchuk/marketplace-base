@@ -1,0 +1,33 @@
+{
+  "specVersion": 1,
+  "request": {
+    "plugin": "p-x",
+    "tier": "a"
+  },
+  "kit": {
+    "marketplace": "acme",
+    "plugin": "p-x",
+    "skill": "s",
+    "layers": [
+      "skill-defaults",
+      "org",
+      "team",
+      "project",
+      "user",
+      "project-local"
+    ],
+    "defaults": {}
+  },
+  "env": {
+    "platform": "posix",
+    "cwd": "/r",
+    "gitRoot": "/r",
+    "home": "/h",
+    "XDG_CONFIG_HOME": null,
+    "APPDATA": null
+  },
+  "files": {
+    "$KIT/policy/org.json": "{\"access\":{\"allow\":[\"p-*\"],\"deny\":[\"p\"]}}",
+    "/r/.acme/config.json": "{\"plugins\":{\"p\":{\"settings\":{\"x\":\"p\"}},\"p-x\":{\"settings\":{\"x\":\"p-x\"}}}}"
+  }
+}

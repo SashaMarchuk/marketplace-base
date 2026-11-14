@@ -1,0 +1,32 @@
+{
+  "specVersion": 1,
+  "request": {
+    "plugin": "p",
+    "tier": "a"
+  },
+  "kit": {
+    "marketplace": "acme",
+    "plugin": "p",
+    "skill": "s",
+    "layers": [
+      "skill-defaults",
+      "org",
+      "team",
+      "project",
+      "user",
+      "project-local"
+    ],
+    "defaults": {}
+  },
+  "env": {
+    "platform": "posix",
+    "cwd": "/r",
+    "gitRoot": "/r",
+    "home": "/h",
+    "XDG_CONFIG_HOME": null,
+    "APPDATA": null
+  },
+  "files": {
+    "/r/.acme/config.json": "{\"settings\":{\"ctl\":\"a\\u0001b\\nc\\td\\u001fe\\b\\f\\r\",\"del\":\"x\\u007fy\",\"esc\":\"q\\\"b\\\\s/\",\"raw\":\"café ✓ \\ud83d\\ude00\"}}"
+  }
+}

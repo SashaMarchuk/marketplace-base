@@ -1,0 +1,14 @@
+{
+  "author": {
+    "email": "alice@example.com",
+    "name": "Alice Example"
+  },
+  "description": "Alpha plugin. Has two configurable skills.",
+  "keywords": [
+    "alpha",
+    "demo"
+  ],
+  "license": "MIT",
+  "name": "alpha",
+  "version": "1.2.3+mb.9f6c7bf1"
+}

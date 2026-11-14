@@ -1,0 +1,56 @@
+{
+  "interface": {
+    "displayName": "Acme Skills"
+  },
+  "name": "acme",
+  "plugins": [
+    {
+      "category": "Coding",
+      "name": "alpha",
+      "policy": {
+        "authentication": "ON_INSTALL",
+        "installation": "AVAILABLE"
+      },
+      "source": {
+        "path": "./plugins/alpha",
+        "source": "local"
+      }
+    },
+    {
+      "category": "Coding",
+      "name": "beta",
+      "policy": {
+        "authentication": "ON_INSTALL",
+        "installation": "INSTALLED_BY_DEFAULT"
+      },
+      "source": {
+        "path": "./plugins/beta",
+        "source": "local"
+      }
+    },
+    {
+      "category": "Writing",
+      "name": "ex-a",
+      "policy": {
+        "authentication": "ON_INSTALL",
+        "installation": "AVAILABLE"
+      },
+      "source": {
+        "path": "./examples/plugins/ex-a",
+        "source": "local"
+      }
+    },
+    {
+      "category": "Archive",
+      "name": "legacy-notes",
+      "policy": {
+        "authentication": "ON_INSTALL",
+        "installation": "AVAILABLE"
+      },
+      "source": {
+        "path": "./plugins/legacy-notes",
+        "source": "local"
+      }
+    }
+  ]
+}

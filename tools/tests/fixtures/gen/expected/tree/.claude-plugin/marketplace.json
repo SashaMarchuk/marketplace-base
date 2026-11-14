@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "description": "Generator fixture marketplace."
+  },
+  "name": "acme",
+  "owner": {
+    "email": "alice@example.com",
+    "name": "Alice Example"
+  },
+  "plugins": [
+    {
+      "category": "Coding",
+      "description": "Alpha plugin. Has two configurable skills.",
+      "keywords": [
+        "alpha",
+        "demo"
+      ],
+      "name": "alpha",
+      "source": "./plugins/alpha"
+    },
+    {
+      "category": "Coding",
+      "description": "Beta plugin with only required fields.",
+      "name": "beta",
+      "source": "./plugins/beta"
+    },
+    {
+      "category": "Writing",
+      "description": "Example A. Configurable example.",
+      "keywords": [
+        "example"
+      ],
+      "name": "ex-a",
+      "source": "./examples/plugins/ex-a"
+    },
+    {
+      "category": "Archive",
+      "description": "Legacy notes plugin! Blocked by org policy.",
+      "name": "legacy-notes",
+      "source": "./plugins/legacy-notes"
+    }
+  ]
+}

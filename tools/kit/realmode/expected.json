@@ -1,0 +1,1 @@
+{"blocked":false,"errors":[],"locked":["/style/tone"],"ok":true,"plugin":"p","provenance":{"/lang":"project","/maxItems":"user","/style/tone":"org"},"settings":{"lang":"en","maxItems":9,"style":{"tone":"formal"}},"tier":"a","warnings":[{"code":"LOCKED_OVERRIDE","layer":"user","path":"/style/tone"}]}

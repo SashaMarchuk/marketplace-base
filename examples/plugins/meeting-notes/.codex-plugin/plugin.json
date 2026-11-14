@@ -1,0 +1,14 @@
+{
+  "author": {
+    "name": "marketplace-base contributors"
+  },
+  "description": "Turn raw meeting notes into a structured template with configurable sections, language and date format.",
+  "keywords": [
+    "meetings",
+    "notes",
+    "action-items"
+  ],
+  "license": "MIT",
+  "name": "meeting-notes",
+  "version": "0.1.0+mb.860e1958"
+}

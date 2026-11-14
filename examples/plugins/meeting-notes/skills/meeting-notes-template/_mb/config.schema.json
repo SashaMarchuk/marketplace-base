@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../tools/schemas/config-schema-subset.schema.json",
+  "title": "meeting-notes settings",
+  "description": "Settings for every skill of the meeting-notes plugin (plugins.meeting-notes.settings).",
+  "type": "object",
+  "properties": {
+    "sections": {
+      "description": "Section headings, in output order.",
+      "type": "array",
+      "items": { "type": "string", "maxLength": 40 }
+    },
+    "language": {
+      "description": "Language of the written notes (ISO 639-1 code).",
+      "type": "string",
+      "enum": ["en", "de", "fr", "es", "uk", "pt", "ja"]
+    },
+    "dateFormat": {
+      "description": "How dates are written in the notes.",
+      "type": "string",
+      "enum": ["YYYY-MM-DD", "DD.MM.YYYY", "MM/DD/YYYY"]
+    },
+    "actionItemOwner": {
+      "description": "Every action item names an owner (TBD when unknown).",
+      "type": "boolean"
+    }
+  }
+}

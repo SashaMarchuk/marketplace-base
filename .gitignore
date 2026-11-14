@@ -1,0 +1,9 @@
+# Local additions go outside the generated block below; `./mb gen` rewrites only the block.
+.DS_Store
+node_modules/
+
+# mb:gitignore:begin
+.mb/leak-denylist.txt
+.marketplace-base/config.local.json
+dist/
+# mb:gitignore:end

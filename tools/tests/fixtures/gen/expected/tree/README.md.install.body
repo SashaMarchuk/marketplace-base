@@ -1,0 +1,20 @@
+**Claude Code**
+
+```sh
+claude plugin marketplace add acme/skills
+claude plugin install alpha@acme
+```
+
+**Codex**
+
+```sh
+codex plugin marketplace add acme/skills
+codex plugin add alpha@acme
+```
+
+**Plain skills folder** (from a clone of this repo)
+
+```sh
+./mb export skills ~/.agents/skills    # Codex
+./mb export skills ~/.claude/skills    # Claude Code
+```

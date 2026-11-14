@@ -1,0 +1,11 @@
+{
+  "$schema": "./tools/schemas/marketplace-config.schema.json",
+  "name": "acme",
+  "displayName": "Acme Skills",
+  "description": "Generator fixture marketplace.",
+  "owner": { "name": "Alice Example", "email": "alice@example.com" },
+  "distribution": { "source": "github", "repo": "acme/skills" },
+  "includeExamples": ["ex-a"],
+  "codex": { "defaultCategory": "Coding", "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" } },
+  "evals": { "threshold": 0.6 }
+}

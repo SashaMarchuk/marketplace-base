@@ -1,0 +1,8 @@
+| Layer | macOS / Linux | Windows |
+|---|---|---|
+| skill-defaults | `<skill-dir>/_mb/kit.json` (`defaults`) | `<skill-dir>\_mb\kit.json` (`defaults`) |
+| org | `<skill-dir>/_mb/policy/org.json` (from `policy/org.json`) | `<skill-dir>\_mb\policy\org.json` |
+| team | `<skill-dir>/_mb/policy/teams/<team>.json` | `<skill-dir>\_mb\policy\teams\<team>.json` |
+| project | `<repo>/.acme/config.json` | `<repo>\.acme\config.json` |
+| user | `$XDG_CONFIG_HOME/acme/config.json` if `XDG_CONFIG_HOME` is absolute, else `~/.config/acme/config.json` | `%APPDATA%\acme\config.json` |
+| project-local | `<repo>/.acme/config.local.json` (gitignored) | `<repo>\.acme\config.local.json` (gitignored) |

@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../tools/schemas/plugin-src.schema.json",
+  "name": "commit-message",
+  "version": "0.1.0",
+  "description": "Draft a Conventional Commits message from a described or staged change. Read-only.",
+  "keywords": ["git", "commit", "conventional-commits"],
+  "category": "Productivity",
+  "license": "MIT"
+}

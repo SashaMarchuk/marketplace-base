@@ -1,0 +1,97 @@
+# mb-check (base-owned; SPEC section 16). PR and default-branch checks. No secrets, read-only token.
+# The ONLY required status check is the aggregate job named exactly `mb-check`, so the required check
+# name never depends on the OS matrix. Add your own CI as .github/workflows/<name>.yml (not mb-*).
+name: mb-check
+
+on:
+  pull_request:
+  push:
+    branches: [main, master] # the default branch; add yours here if it has another name
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mb-check-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Pinned host CLI for CHK-18 (claude plugin validate --strict; no auth needed) and OpenSpec (O7).
+  CLAUDE_CODE_VERSION: 2.1.325
+  OPENSPEC_VERSION: 2.0.0
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.read.outputs.matrix }}
+      is-base: ${{ steps.read.outputs.is-base }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: read
+        name: Read ci.osMatrix and isBase
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          import fs from "node:fs";
+          const cfg = JSON.parse(fs.readFileSync("marketplace.config.json", "utf8"));
+          const os = cfg.ci?.osMatrix?.length ? cfg.ci.osMatrix : ["ubuntu-latest"];
+          const isBase = !fs.existsSync(".mb-lock.json");
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `matrix=${JSON.stringify({ os })}\nis-base=${isBase}\n`);
+          console.log(`os matrix: ${os.join(", ")}; isBase: ${isBase}`);
+          JS
+
+  check:
+    needs: [setup]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash # windows-latest defaults to pwsh, which cannot run ./mb
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # CHK-15 needs the merge-base / first parent
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Install the pinned Claude Code CLI (CHK-18)
+        run: npm i -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+      - name: ./mb check
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = "push" ]; then ./mb check --json --base HEAD^1; else ./mb check --json; fi
+      - name: ./mb test
+        run: ./mb test
+      - name: OpenSpec validate
+        continue-on-error: true # the network may be blocked
+        env:
+          OPENSPEC_TELEMETRY: '0'
+        run: npx -y "@fission-ai/openspec@${OPENSPEC_VERSION}" validate --all --strict
+      - name: Derive/update proof (base only)
+        if: needs.setup.outputs.is-base == 'true'
+        run: ./mb test --derive
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        if: needs.setup.outputs.is-base == 'true'
+      - name: Conformance vectors on bun (base only)
+        if: needs.setup.outputs.is-base == 'true'
+        run: ./mb test --vectors-only --runtime bun
+
+  mb-check:
+    name: mb-check
+    needs: [check]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every check leg succeeded
+        env:
+          RESULT: ${{ needs.check.result }}
+        run: |
+          echo "check result: $RESULT"
+          [ "$RESULT" = "success" ]

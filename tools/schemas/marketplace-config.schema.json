@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "marketplace-config.schema.json",
+  "title": "marketplace.config.json (SPEC section 5)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "displayName", "description", "owner"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^(?!claude|anthropic|openai|codex)[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "displayName": { "type": "string", "minLength": 1 },
+    "description": { "type": "string", "minLength": 1 },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "email": { "type": "string", "pattern": "^[^@\\s]+@[^@\\s]+$" }
+      }
+    },
+    "distribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "repo"],
+      "properties": {
+        "source": { "const": "github" },
+        "repo": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" }
+      }
+    },
+    "includeExamples": {
+      "anyOf": [
+        { "type": "boolean" },
+        { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/kebab64" } }
+      ]
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "layers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "prefixItems": [{ "const": "skill-defaults" }],
+          "items": { "enum": ["skill-defaults", "org", "team", "project", "user", "project-local"] }
+        }
+      }
+    },
+    "codex": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "defaultCategory": { "type": "string", "minLength": 1 },
+        "policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "installation": { "enum": ["AVAILABLE", "INSTALLED_BY_DEFAULT", "NOT_AVAILABLE"] },
+            "authentication": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "base": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "url": { "type": "string", "format": "uri" } }
+    },
+    "ci": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "osMatrix": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "policyEmit": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "marketplaceOnly": { "anyOf": [{ "type": "boolean" }, { "const": "strict" }] }
+      }
+    },
+    "evals": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "runs": { "type": "integer", "minimum": 1 },
+        "maxCostUsd": { "type": "number", "minimum": 0 },
+        "models": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "claude": { "type": "string", "minLength": 1 },
+            "codex": { "type": "string", "minLength": 1 },
+            "judge": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "kebab64": { "type": "string", "maxLength": 64, "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "specVersion": 1,
+  "request": {
+    "plugin": "p",
+    "tier": "a"
+  },
+  "kit": {
+    "marketplace": "acme",
+    "plugin": "p",
+    "skill": "s",
+    "layers": [
+      "skill-defaults",
+      "org",
+      "team",
+      "project",
+      "user",
+      "project-local"
+    ],
+    "defaults": {
+      "tags": [
+        "d"
+      ]
+    }
+  },
+  "env": {
+    "platform": "posix",
+    "cwd": "/r",
+    "gitRoot": "/r",
+    "home": "/h",
+    "XDG_CONFIG_HOME": null,
+    "APPDATA": null
+  },
+  "files": {
+    "$KIT/policy/org.json": "{\"settings\":{\"tags\":[\"a\",\"b\",\"c\"]}}",
+    "/h/.config/acme/config.json": "{\"settings\":{\"tags\":[\"x\"]}}"
+  }
+}

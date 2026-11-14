@@ -1,0 +1,35 @@
+{
+  "specVersion": 1,
+  "request": {
+    "plugin": "p",
+    "tier": "a"
+  },
+  "kit": {
+    "marketplace": "acme",
+    "plugin": "p",
+    "skill": "s",
+    "layers": [
+      "skill-defaults",
+      "org",
+      "team",
+      "project",
+      "user",
+      "project-local"
+    ],
+    "defaults": {}
+  },
+  "env": {
+    "platform": "win32",
+    "cwd": "C:\\r",
+    "gitRoot": "C:\\r",
+    "home": "C:\\h",
+    "XDG_CONFIG_HOME": null,
+    "APPDATA": "C:\\a"
+  },
+  "files": {
+    "C:\\r\\.acme\\config.json": "{\"settings\":{\"x\":\"project\",\"y\":\"project\"}}",
+    "C:\\a\\acme\\config.json": "{\"settings\":{\"x\":\"user\"}}",
+    "/r/.acme/config.json": "{\"settings\":{\"z\":\"posix\"}}",
+    "C:\\h\\.config\\acme\\config.json": "{\"settings\":{\"z\":\"home\"}}"
+  }
+}

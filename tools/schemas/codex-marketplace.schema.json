@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-marketplace.schema.json",
+  "title": "Generated .agents/plugins/marketplace.json (SPEC 4.5; shape pinned by the 2026-11-14 install spike)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "interface", "plugins"],
+  "properties": {
+    "name": { "type": "string", "maxLength": 64, "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "interface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["displayName"],
+      "properties": { "displayName": { "type": "string", "minLength": 1 } }
+    },
+    "plugins": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "source", "policy", "category"],
+        "properties": {
+          "name": { "type": "string", "maxLength": 64, "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+          "category": { "type": "string", "minLength": 1 },
+          "policy": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["installation", "authentication"],
+            "properties": {
+              "installation": { "enum": ["AVAILABLE", "INSTALLED_BY_DEFAULT", "NOT_AVAILABLE"] },
+              "authentication": { "type": "string", "minLength": 1 }
+            }
+          },
+          "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source", "path"],
+            "properties": {
+              "source": { "const": "local" },
+              "path": { "type": "string", "pattern": "^\\./(examples/)?plugins/[a-z0-9]+(-[a-z0-9]+)*$" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

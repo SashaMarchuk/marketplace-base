@@ -1,0 +1,36 @@
+{
+  "specVersion": 1,
+  "request": {
+    "plugin": "p",
+    "tier": "a"
+  },
+  "kit": {
+    "marketplace": "acme",
+    "plugin": "p",
+    "skill": "s",
+    "layers": [
+      "skill-defaults",
+      "org",
+      "team",
+      "project",
+      "user",
+      "project-local"
+    ],
+    "defaults": {
+      "x": 1
+    }
+  },
+  "env": {
+    "platform": "posix",
+    "cwd": "/r",
+    "gitRoot": "/r",
+    "home": "/h",
+    "XDG_CONFIG_HOME": null,
+    "APPDATA": null
+  },
+  "files": {
+    "/r/.acme/config.json": "{\"team\":\"../../r/.acme/x\"}",
+    "$KIT/policy/teams/../../r/.acme/x.json": "{\"settings\":{\"pwned\":true}}",
+    "/r/.acme/x.json": "{\"settings\":{\"pwned\":true}}"
+  }
+}

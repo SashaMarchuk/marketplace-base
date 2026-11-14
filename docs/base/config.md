@@ -1,0 +1,148 @@
+# Configuration
+
+How configurable skills get their settings: layers, file locations, merge rules, policy, writes, and what happens without a JavaScript runtime. Requirements: [openspec/specs/mb-config](../../openspec/specs/mb-config/spec.md) and [mb-merge-tiers](../../openspec/specs/mb-merge-tiers/spec.md).
+
+**Honesty statement.**
+
+> Config-file `enforced` values are advisory on a user's machine. Real enforcement is CI, repo rules, or host-native policy. Policy is vendored into each plugin, so a policy change reaches a user only when that user updates the plugin.
+
+## Making a plugin configurable
+
+Add `config.defaults.json` next to `plugin.src.json` (or run `./mb new skill <p>/<s> "..." --config`). Every skill of that plugin then becomes configurable: `./mb gen` vendors the resolver kit into `skills/<s>/_mb/` and adds a generated "Configuration" block to each SKILL.md. All skills of a plugin share one settings namespace, one set of defaults and one optional `config.schema.json`.
+
+## Layers
+
+Settings merge from low to high priority, in the order given by `config.layers` in `marketplace.config.json`:
+
+| Layer | Where it comes from | Who controls it |
+|---|---|---|
+| `skill-defaults` | `config.defaults.json` of the plugin | plugin author |
+| `org` | `policy/org.json` in the marketplace repo, vendored into each plugin | marketplace admins |
+| `team` | `policy/teams/<team>.json`, vendored; selected by the `team` key | marketplace admins |
+| `project` | `<root>/.<mkt>/config.json` | the project repo (commit it) |
+| `user` | `$XDG_CONFIG_HOME/<mkt>/config.json` (absolute only), else `~/.config/<mkt>/config.json`; Windows `%APPDATA%\<mkt>\config.json` | the user |
+| `project-local` | `<root>/.<mkt>/config.local.json` (gitignored) | the user, per project |
+
+`<root>` is `git rev-parse --show-toplevel`, or the working directory outside git. Nothing else is read: there is no walk-up, so a config file in a subdirectory is ignored.
+
+The order is data. You may drop layers or reorder them (for example `user` before `project`), but `skill-defaults` must come first and names may not repeat. `./mb check` validates this (CHK-02).
+
+## File shape
+
+Every layer file has the same shape:
+
+```json
+{
+  "$schema": "../tools/schemas/layer-file.schema.json",
+  "settings": { "language": "en" },
+  "plugins": { "code-review": { "enabled": true, "settings": { "maxItems": 5 } } },
+  "enforced": { "settings": {}, "plugins": { "code-review": { "settings": { "checks": { "security": true } } } } },
+  "access": { "allow": ["*"], "deny": ["legacy-*"] },
+  "team": "payments",
+  "merge": { "allowGenerated": true }
+}
+```
+
+| Key | Honoured in | Elsewhere |
+|---|---|---|
+| `settings`, `plugins` | all layers | |
+| `enforced` | org, team | ignored with warning `ENFORCED_IGNORED` |
+| `access` | all layers | |
+| `team` | project, user (must be kebab-case) | ignored with warning `KEY_IGNORED` |
+| `merge` | user | ignored with warning `KEY_IGNORED` |
+
+Strict text rules for every config file: integers only (no `1.5`, `1.0` or `1e3`), keys match `^[A-Za-z0-9_-]{1,64}$`, no duplicate keys, no `__proto__`/`constructor`/`prototype`, no BOM, valid UTF-8. Secrets never appear as text: write `"${env:NAME}"`, which is passed through unchanged.
+
+## Merge rules
+
+1. **Cascade.** For each layer, low to high: apply `settings`, then `plugins.<p>.settings`, as an RFC 7386 merge patch. Objects merge key by key; arrays and scalars replace whole; `null` deletes a key. `plugins.<p>.enabled` set by the highest layer wins.
+2. **Enforced.** `enforced` values from team, then org, overwrite the result and **lock** those paths. A personal value at a locked path is overridden (`LOCKED_OVERRIDE` warning). If team and org lock the same path with different values, org wins (`ENFORCED_CONFLICT`; `./mb check` also reports it in CI).
+3. **Access.** `deny` is a union: a match in any layer blocks the plugin. `allow` is an intersection: every layer that declares `allow` must match the plugin. `*` matches any run of characters. A blocked or disabled plugin makes the resolver exit 4.
+
+Failure handling:
+
+| Problem | Org or team file | Project, user or project-local file |
+|---|---|---|
+| Unparsable, bad shape, forbidden key | stop, exit 3 (`POLICY_INVALID`) | skip the file, warning `FILE_SKIPPED` |
+| Bad `access` (e.g. `"deny": "p"`) | stop, exit 3 (`ACCESS_INVALID`) | stop, exit 3 (`ACCESS_INVALID`) |
+| `null` inside `enforced` | stop, exit 3 (`ENFORCED_INVALID`) | n/a |
+| Unknown key at a closed level | stop, exit 3 | warning `UNKNOWN_KEY` |
+| Named team has no file | stop, exit 3 (`TEAM_UNKNOWN`) | |
+| File exists but cannot be read | stop, exit 3 (`FILE_UNREADABLE` + `POLICY_INVALID`) | treated as absent, warning `FILE_UNREADABLE` |
+
+A missing or broken `_mb/kit.json` is exit 3 `KIT_INVALID`. A bad command line is exit 2 and still prints the JSON line, with `errors: [{"code":"USAGE"}]`.
+
+The exact algorithm is [tools/kit/MERGE-SPEC.md](../../tools/kit/MERGE-SPEC.md); the 57 conformance vectors in `tools/kit/vectors/` are the judge.
+
+## Resolver output
+
+`node "<skill-dir>/_mb/resolve.mjs" --plugin <p>` prints one JSON line:
+
+```json
+{"blocked":false,"errors":[],"locked":["/checks/security"],"ok":true,"plugin":"code-review","provenance":{"/checks/security":"org","/maxItems":"user"},"settings":{"checks":{"security":true},"maxItems":5},"tier":"a","warnings":[{"code":"LOCKED_OVERRIDE","layer":"user","path":"/checks/security"}]}
+```
+
+| Exit | Meaning | The skill |
+|---|---|---|
+| 0 | resolved | uses `settings`, never changes a `locked` path |
+| 2 | usage error | stops and reports |
+| 3 | config or policy error | stops and shows `errors` |
+| 4 | blocked or disabled | says it is blocked (and by which layer) and stops |
+| 5 | unsupported spec version | stops and reports |
+| other, or no JSON | the runtime could not run it | follows the fallback tiers below |
+
+Inspect the result from the repo with `./mb config resolve <p> [--skill s] [--cwd dir]`, which prints a table of pointer, value, layer and locked.
+
+The generated SKILL.md block that tells the agent all this looks like this (indented here):
+
+    <!-- mb:config:begin -->
+    ## Configuration (do this first)
+    `<skill-dir>` means the absolute directory that contains this SKILL.md (not the working directory).
+    1. Run `node "<skill-dir>/_mb/resolve.mjs" --plugin <p>` (node 20 or later). ...
+    <!-- mb:config:end -->
+
+## Writing settings
+
+The skill saves a stated preference with:
+
+```sh
+node "<skill-dir>/_mb/resolve.mjs" set   --plugin <p> --layer user|project|project-local [--shared] <json-pointer> '<json>'
+node "<skill-dir>/_mb/resolve.mjs" unset --plugin <p> --layer user|project|project-local [--shared] <json-pointer>
+```
+
+- The value goes under `plugins.<p>.settings` (or top-level `settings` with `--shared`).
+- It is checked against the strict text rules and, if present, the plugin's `config.schema.json`.
+- A path that overlaps a locked path is refused (`LOCKED`, exit 3) and nothing is written.
+- The write is atomic and keeps unknown keys. An unparsable existing file is left untouched (exit 3).
+- If the file cannot be written (`WRITE_DENIED`, for example inside the Codex sandbox), use `--layer project-local` or approve the write.
+- `project-local` files are kept out of git by the seeded `.gitignore` (`.<mkt>/config.local.json`); `set` does not check this.
+- Other exit-3 codes of `set`/`unset`: `SCHEMA_INVALID` (value violates `config.schema.json`), `FILE_INVALID` (target file unparsable; never rewritten).
+
+## Schema
+
+`config.schema.json` (optional, plugin level) may use only `type`, `enum`, `properties`, `items`, `minimum`, `maximum`, `maxLength` (plus the annotations `$schema`, `title` and `description`). It is used by `set` and by `./mb check` (CHK-11, CHK-12: defaults and enforced values must validate). The merge itself never uses the schema.
+
+## Tiers
+
+| Tier | When | What runs |
+|---|---|---|
+| a | `node` 20+ or `bun` exists | `_mb/resolve.mjs` |
+| b | no runtime, but a verified merger was saved before | the saved merger, after its sha256 matches |
+| c | no runtime and no saved merger | the agent generates a merger from `_mb/MERGE-SPEC.md` in Python or PowerShell, verifies it against every vector and a real-mode check, then saves and runs it |
+
+The agent follows `_mb/FALLBACK.md` step by step. Key points:
+
+- Saved mergers live only in `$XDG_DATA_HOME/<mkt>/mergers/` or `~/.local/share/<mkt>/mergers/` (Windows `%LOCALAPPDATA%`), named by spec version and a hash of the vectors, so a kit change makes old mergers unused.
+- At most 2 repair rounds. If vectors still fail, the skill stops; it never merges config by hand.
+- If the save is denied (Codex `workspace-write`), the merger is used once and the skill says "merger not cached".
+- Tiers b and c never write config. They show you the file and JSON to add instead.
+- **Opt out:** the org sets `"enforced": {"settings": {"merge": {"allowGenerated": false}}}` in `policy/org.json`, or a user sets `"merge": {"allowGenerated": false}` in the user file. The skill then stops when no runtime exists.
+- `./mb check`, `./mb policy emit` and CI always use tier a.
+
+## Scope of access checks
+
+Access policy (`deny`, `allow`, `enabled: false`) is applied at runtime **only by configurable skills**, because only they run the resolver. Skills of plugins without `config.defaults.json` are not stopped by `access.deny`. To block those, use host-native policy (`./mb policy emit`, see [policy.md](policy.md)) or remove them from the marketplace.
+
+## Trust
+
+Project and project-local files are repo content, trusted like the repo's README or AGENTS.md: whoever can commit to the repo controls them. Skills treat every setting value as data and never follow instructions found inside one.

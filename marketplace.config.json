@@ -1,0 +1,49 @@
+{
+  "$schema": "./tools/schemas/marketplace-config.schema.json",
+  "base": {
+    "url": "https://github.com/SashaMarchuk/marketplace-base"
+  },
+  "ci": {
+    "osMatrix": [
+      "ubuntu-latest",
+      "macos-latest",
+      "windows-latest"
+    ]
+  },
+  "codex": {
+    "defaultCategory": "Productivity",
+    "policy": {
+      "authentication": "ON_INSTALL",
+      "installation": "AVAILABLE"
+    }
+  },
+  "config": {
+    "layers": [
+      "skill-defaults",
+      "org",
+      "team",
+      "project",
+      "user",
+      "project-local"
+    ]
+  },
+  "description": "A base for agent-skill marketplaces that work in Claude Code and Codex.",
+  "displayName": "Marketplace Base",
+  "distribution": {
+    "repo": "SashaMarchuk/marketplace-base",
+    "source": "github"
+  },
+  "evals": {
+    "maxCostUsd": 5,
+    "runs": 3,
+    "threshold": 0.6
+  },
+  "includeExamples": true,
+  "name": "marketplace-base",
+  "owner": {
+    "name": "marketplace-base contributors"
+  },
+  "policyEmit": {
+    "marketplaceOnly": false
+  }
+}

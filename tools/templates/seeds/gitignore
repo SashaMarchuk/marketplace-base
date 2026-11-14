@@ -1,0 +1,6 @@
+# Local additions go outside the generated block below; `./mb gen` rewrites only the block.
+.DS_Store
+node_modules/
+
+# mb:gitignore:begin
+# mb:gitignore:end

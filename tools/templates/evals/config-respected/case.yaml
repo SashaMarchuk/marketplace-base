@@ -1,0 +1,6 @@
+# Native `claude plugin eval` case file; prompt.md and graders/*.md in this dir are merged into it.
+# case.yaml exists only to set context.scaffold_script (run by `./mb eval` with --scaffold).
+schema_version: "1.0"
+name: config-respected
+context:
+  scaffold_script: scaffold.sh

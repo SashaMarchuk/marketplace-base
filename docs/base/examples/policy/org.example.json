@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../../tools/schemas/layer-file.schema.json",
+  "enforced": {
+    "plugins": {
+      "code-review": {
+        "settings": {
+          "checks": {
+            "security": true
+          }
+        }
+      }
+    }
+  },
+  "access": {
+    "deny": ["legacy-*"]
+  }
+}

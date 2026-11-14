@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lock.schema.json",
+  "title": ".mb-lock.json (SPEC section 14.2)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["adopted", "base", "files", "lockVersion"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "adopted": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "maxLength": 64, "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" }
+    },
+    "base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "tag", "commit"],
+      "properties": {
+        "url": { "type": "string", "minLength": 1 },
+        "tag": {
+          "type": "string",
+          "pattern": "^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$"
+        },
+        "commit": { "anyOf": [{ "type": "string", "pattern": "^[0-9a-f]{40}$" }, { "type": "null" }] }
+      }
+    },
+    "files": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+    },
+    "lockVersion": { "const": 1 }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "author": {
+    "name": "marketplace-base contributors"
+  },
+  "description": "Write one Keep a Changelog entry under the right heading. Read-only.",
+  "keywords": [
+    "changelog",
+    "release-notes",
+    "keep-a-changelog"
+  ],
+  "license": "MIT",
+  "name": "changelog-entry",
+  "version": "0.1.0"
+}

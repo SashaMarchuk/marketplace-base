@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plugin-src.schema.json",
+  "title": "plugin.src.json (SPEC section 3)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "version", "description"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": { "allOf": [{ "$ref": "#/$defs/kebab64" }, { "not": { "enum": ["constructor", "prototype"] } }] },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "description": { "type": "string", "minLength": 1, "maxLength": 1024, "pattern": "\\.$" },
+    "author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "email": { "type": "string", "pattern": "^[^@\\s]+@[^@\\s]+$" },
+        "url": { "type": "string", "format": "uri" }
+      }
+    },
+    "keywords": { "type": "array", "maxItems": 10, "items": { "$ref": "#/$defs/kebab64" } },
+    "category": { "type": "string", "minLength": 1 },
+    "license": { "type": "string", "minLength": 1 },
+    "homepage": { "type": "string", "format": "uri" },
+    "repository": { "type": "string", "format": "uri" },
+    "codex": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "policy": { "$ref": "#/$defs/codexPolicy" } }
+    }
+  },
+  "$defs": {
+    "kebab64": { "type": "string", "maxLength": 64, "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "codexPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "installation": { "enum": ["AVAILABLE", "INSTALLED_BY_DEFAULT", "NOT_AVAILABLE"] },
+        "authentication": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

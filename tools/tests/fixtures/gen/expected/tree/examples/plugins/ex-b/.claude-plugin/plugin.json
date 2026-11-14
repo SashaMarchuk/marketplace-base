@@ -1,0 +1,9 @@
+{
+  "author": {
+    "email": "alice@example.com",
+    "name": "Alice Example"
+  },
+  "description": "Example B. Not included.",
+  "name": "ex-b",
+  "version": "0.1.0"
+}

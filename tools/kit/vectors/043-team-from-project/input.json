@@ -1,0 +1,35 @@
+{
+  "specVersion": 1,
+  "request": {
+    "plugin": "p",
+    "tier": "a"
+  },
+  "kit": {
+    "marketplace": "acme",
+    "plugin": "p",
+    "skill": "s",
+    "layers": [
+      "skill-defaults",
+      "org",
+      "team",
+      "project",
+      "user",
+      "project-local"
+    ],
+    "defaults": {}
+  },
+  "env": {
+    "platform": "posix",
+    "cwd": "/r",
+    "gitRoot": "/r",
+    "home": "/h",
+    "XDG_CONFIG_HOME": null,
+    "APPDATA": null
+  },
+  "files": {
+    "/r/.acme/config.json": "{\"team\":\"t1\"}",
+    "/h/.config/acme/config.json": "{\"team\":\"t2\"}",
+    "$KIT/policy/teams/t1.json": "{\"settings\":{\"x\":\"t1\"}}",
+    "$KIT/policy/teams/t2.json": "{\"settings\":{\"x\":\"t2\",\"y\":\"t2\"}}"
+  }
+}

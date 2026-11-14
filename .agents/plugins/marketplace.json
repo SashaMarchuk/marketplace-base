@@ -1,0 +1,56 @@
+{
+  "interface": {
+    "displayName": "Marketplace Base"
+  },
+  "name": "marketplace-base",
+  "plugins": [
+    {
+      "category": "Productivity",
+      "name": "changelog-entry",
+      "policy": {
+        "authentication": "ON_INSTALL",
+        "installation": "AVAILABLE"
+      },
+      "source": {
+        "path": "./examples/plugins/changelog-entry",
+        "source": "local"
+      }
+    },
+    {
+      "category": "Productivity",
+      "name": "code-review",
+      "policy": {
+        "authentication": "ON_INSTALL",
+        "installation": "AVAILABLE"
+      },
+      "source": {
+        "path": "./examples/plugins/code-review",
+        "source": "local"
+      }
+    },
+    {
+      "category": "Productivity",
+      "name": "commit-message",
+      "policy": {
+        "authentication": "ON_INSTALL",
+        "installation": "AVAILABLE"
+      },
+      "source": {
+        "path": "./examples/plugins/commit-message",
+        "source": "local"
+      }
+    },
+    {
+      "category": "Productivity",
+      "name": "meeting-notes",
+      "policy": {
+        "authentication": "ON_INSTALL",
+        "installation": "AVAILABLE"
+      },
+      "source": {
+        "path": "./examples/plugins/meeting-notes",
+        "source": "local"
+      }
+    }
+  ]
+}

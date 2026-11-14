@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-plugin.schema.json",
+  "title": "Generated .codex-plugin/plugin.json (SPEC 4.2; shape pinned by the 2026-11-14 install spike)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "version", "description", "author"],
+  "properties": {
+    "name": { "type": "string", "maxLength": 64, "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(\\+mb\\.[0-9a-f]{8})?$"
+    },
+    "description": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "email": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "format": "uri" }
+      }
+    },
+    "keywords": { "type": "array", "maxItems": 10, "items": { "type": "string", "minLength": 1 } },
+    "license": { "type": "string", "minLength": 1 },
+    "homepage": { "type": "string", "format": "uri" },
+    "repository": { "type": "string", "format": "uri" }
+  }
+}

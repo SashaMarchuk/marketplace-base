@@ -1,0 +1,43 @@
+{
+  "specVersion": 1,
+  "request": {
+    "plugin": "p",
+    "tier": "a"
+  },
+  "kit": {
+    "marketplace": "acme",
+    "plugin": "p",
+    "skill": "s",
+    "layers": [
+      "skill-defaults",
+      "org",
+      "team",
+      "project",
+      "user",
+      "project-local"
+    ],
+    "defaults": {
+      "a": "skill-defaults",
+      "b": "skill-defaults",
+      "c": "skill-defaults",
+      "d": "skill-defaults",
+      "e": "skill-defaults",
+      "f": "skill-defaults"
+    }
+  },
+  "env": {
+    "platform": "posix",
+    "cwd": "/r",
+    "gitRoot": "/r",
+    "home": "/h",
+    "XDG_CONFIG_HOME": null,
+    "APPDATA": null
+  },
+  "files": {
+    "$KIT/policy/org.json": "{\"settings\":{\"b\":\"org\",\"c\":\"org\",\"d\":\"org\",\"e\":\"org\",\"f\":\"org\"}}",
+    "$KIT/policy/teams/t1.json": "{\"settings\":{\"c\":\"team\",\"d\":\"team\",\"e\":\"team\",\"f\":\"team\"}}",
+    "/r/.acme/config.json": "{\"settings\":{\"d\":\"project\",\"e\":\"project\",\"f\":\"project\"},\"team\":\"t1\"}",
+    "/h/.config/acme/config.json": "{\"settings\":{\"e\":\"user\",\"f\":\"user\"}}",
+    "/r/.acme/config.local.json": "{\"settings\":{\"f\":\"project-local\"}}"
+  }
+}

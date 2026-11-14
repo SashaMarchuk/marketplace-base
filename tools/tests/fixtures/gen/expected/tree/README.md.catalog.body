@@ -1,0 +1,6 @@
+| Plugin | Skills | Description | Configurable | Host | Org policy |
+|---|---|---|---|---|---|
+| [alpha](docs/catalog.md#alpha) | `alpha-one`, `alpha-two` | Alpha plugin. | yes | - | required |
+| [beta](docs/catalog.md#beta) | `beta` | Beta plugin with only required fields. | no | host-specific | - |
+| [ex-a](docs/catalog.md#ex-a) | `ex-a` | Example A. | yes | - | - |
+| [legacy-notes](docs/catalog.md#legacy-notes) | `legacy-notes` | Legacy notes plugin! | no | - | blocked |

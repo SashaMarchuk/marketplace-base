@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../tools/schemas/plugin-src.schema.json",
+  "name": "meeting-notes",
+  "version": "0.1.0",
+  "description": "Turn raw meeting notes into a structured template with configurable sections, language and date format.",
+  "keywords": ["meetings", "notes", "action-items"],
+  "category": "Productivity",
+  "license": "MIT"
+}

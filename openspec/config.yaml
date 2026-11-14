@@ -1,0 +1,10 @@
+schema: spec-driven
+
+context: |
+  marketplace-base: a base repo for agent-skill marketplaces that work in Claude Code and Codex.
+  Requirement IDs: `### Requirement: MB-<CAP>-NNN Title` for base capabilities (openspec/specs/mb-*/).
+  A derived marketplace uses its own prefix (not MB-) for its own capabilities.
+  IDs are never reused; a new ID is the highest number used in that capability + 1.
+  Base change ids start with `mbase-`; derived change ids must not.
+  A scenario may cite its runner, e.g. "(vector 038-walk-up-decoy-ignored)" or "(test tools/tests/gen.test.mjs)".
+  Agents: read AGENTS.md first. The `mb` CLI is the only tool; OpenSpec is never needed at runtime.

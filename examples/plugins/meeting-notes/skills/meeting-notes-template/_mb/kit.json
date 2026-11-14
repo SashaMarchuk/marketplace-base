@@ -1,0 +1,24 @@
+{
+  "defaults": {
+    "actionItemOwner": true,
+    "dateFormat": "YYYY-MM-DD",
+    "language": "en",
+    "sections": [
+      "Summary",
+      "Decisions",
+      "Action items"
+    ]
+  },
+  "layers": [
+    "skill-defaults",
+    "org",
+    "team",
+    "project",
+    "user",
+    "project-local"
+  ],
+  "marketplace": "marketplace-base",
+  "plugin": "meeting-notes",
+  "skill": "meeting-notes-template",
+  "specVersion": 1
+}

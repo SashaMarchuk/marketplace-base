@@ -1,0 +1,31 @@
+`git rebase` moves a series of commits onto a new starting point. It replays each commit’s changes on top of another branch, creating new commits with new IDs.
+
+Suppose your feature branch split from `main`, and both gained commits:
+
+```text
+A---B---C  main
+     \
+      D---E  feature
+```
+
+Running this while on `feature`:
+
+```bash
+git rebase main
+```
+
+produces:
+
+```text
+A---B---C  main
+         \
+          D'---E'  feature
+```
+
+Your feature changes now build on the latest `main`. `D'` and `E'` contain the replayed changes but have different commit IDs.
+
+Rebase is useful for keeping a branch up to date and making history linear. Unlike a merge, it doesn’t add a merge commit; it rewrites the rebased commits.
+
+If conflicts occur, fix them, stage the resolved files, and run `git rebase --continue`. To cancel and restore the original branch state, run `git rebase --abort`.
+
+**Avoid rebasing commits others are already using**, unless you coordinate with them, because rewriting shared history can disrupt their work.

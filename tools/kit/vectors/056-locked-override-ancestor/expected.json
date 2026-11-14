@@ -1,0 +1,1 @@
+{"blocked":false,"errors":[],"locked":["/checks/security"],"ok":true,"plugin":"p","provenance":{"/checks/security":"org","/maxItems":"skill-defaults"},"settings":{"checks":{"security":true},"maxItems":5},"tier":"a","warnings":[{"code":"LOCKED_OVERRIDE","layer":"user","path":"/checks/security"}]}

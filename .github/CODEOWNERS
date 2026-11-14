@@ -1,0 +1,9 @@
+# Code owners (GitHub CODEOWNERS). Seed written by `./mb init`; this file is yours afterwards.
+#
+# `./mb github setup` fills the two lines below for a repository owned by a user: it replaces
+# "# * @OWNER" with "* @<login>" (same for the policy line). For an organization a bare "@org" is
+# not a valid code owner, so setup leaves them commented: add "@<org>/<team>" lines yourself.
+# Code-owner review is only required when setup runs with --require-codeowners (2+ maintainers).
+#
+# * @OWNER
+# /policy/org.json @OWNER

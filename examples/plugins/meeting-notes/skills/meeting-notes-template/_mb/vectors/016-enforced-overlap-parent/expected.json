@@ -1,0 +1,1 @@
+{"blocked":false,"errors":[],"locked":["/a/b"],"ok":true,"plugin":"p","provenance":{"/a/b":"org"},"settings":{"a":{"b":2}},"tier":"a","warnings":[{"code":"ENFORCED_CONFLICT","path":"/a/b"}]}

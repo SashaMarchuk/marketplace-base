@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../tools/schemas/config-schema-subset.schema.json",
+  "title": "code-review settings",
+  "description": "Settings for every skill of the code-review plugin (plugins.code-review.settings).",
+  "type": "object",
+  "properties": {
+    "checks": {
+      "description": "Optional checklist groups. Correctness is always checked.",
+      "type": "object",
+      "properties": {
+        "tests": { "type": "boolean" },
+        "security": { "type": "boolean" },
+        "docs": { "type": "boolean" },
+        "performance": { "type": "boolean" }
+      }
+    },
+    "severityLabels": {
+      "description": "Severity labels, most severe first.",
+      "type": "array",
+      "items": { "type": "string", "maxLength": 20 }
+    },
+    "maxItems": {
+      "description": "Maximum number of findings to report.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 50
+    }
+  }
+}

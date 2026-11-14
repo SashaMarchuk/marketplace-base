@@ -1,0 +1,22 @@
+{
+  "defaults": {
+    "maxItems": 5,
+    "sections": [
+      "Summary",
+      "Next steps"
+    ],
+    "strict": false
+  },
+  "layers": [
+    "skill-defaults",
+    "org",
+    "team",
+    "project",
+    "user",
+    "project-local"
+  ],
+  "marketplace": "acme",
+  "plugin": "alpha",
+  "skill": "alpha-one",
+  "specVersion": 1
+}

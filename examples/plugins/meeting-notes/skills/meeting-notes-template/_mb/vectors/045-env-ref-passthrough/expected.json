@@ -1,0 +1,1 @@
+{"blocked":false,"errors":[],"locked":[],"ok":true,"plugin":"p","provenance":{"/token":"project"},"settings":{"token":"${env:TOKEN}"},"tier":"a","warnings":[]}

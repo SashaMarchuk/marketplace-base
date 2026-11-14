@@ -1,0 +1,14 @@
+{
+  "G": ["plugins/*/.claude-plugin/plugin.json", "plugins/*/.codex-plugin/plugin.json", "plugins/*/skills/*/_mb/**",
+        "examples/plugins/*/.claude-plugin/plugin.json", "examples/plugins/*/.codex-plugin/plugin.json",
+        "examples/plugins/*/skills/*/_mb/**", ".claude-plugin/marketplace.json", ".agents/plugins/marketplace.json",
+        "docs/catalog.md", "docs/base/rules.md"],
+  "M": [".mb-lock.json"],
+  "E": ["examples/plugins/**"],
+  "B": ["CLAUDE.md", "CONTRIBUTING.md", "SECURITY.md", "mb", "mb.cmd", "tools/**", ".mb/ownership.json",
+        ".mb/base-version.json", ".mb/migrations/**", "docs/base/**", "openspec/specs/mb-*/spec.md",
+        "openspec/changes/archive/*-mbase-*/**", ".github/workflows/mb-*.yml", ".github/pull_request_template.md",
+        ".gitattributes", ".gitleaks.toml"],
+  "S": ["LICENSE", "README.md", "USAGE.md", "AGENTS.md", "marketplace.config.json", "policy/org.json",
+        "plugins/.gitkeep", "openspec/config.yaml", ".github/CODEOWNERS", ".gitignore"]
+}
